@@ -320,13 +320,13 @@
   {::const v})
 
 (defn const? [x]
-  (and (map? x) (contains? x ::const )))
+  (and (map? x) (contains? x ::const)))
 
 (defn data-arg [x]
   (cond
     (vector? x) [:path x]
     (keyword? x) [:path [x]]
-    (const? x) [:const (::const x)]
+    (const? x) [:path [::const x]]
     :else (throw (IllegalArgumentException. (pr-str x)))))
 
 ;; Transformations
@@ -345,7 +345,7 @@
 ;; TODO: 
 ;; * switch from [sel f & args] to [sel f args]
 ;; * switch from [:sub path t] to [:sub sel t]
-;; * remove :const, [:const x] becomes [:path [::const x]]
+;; [DONE] remove :const, [:const x] becomes [:path [::const x]]
 ;; * create introspection code to determine what are the relevant paths
 ;; * create refactoring code to rename paths
 
@@ -391,8 +391,9 @@
   (let [fargs (for [[tag p t :as arg] args]
                 (case tag 
                   :sub (constantly (bound-plans arg))
-                  :path #(get-in % p)
-                  :const (constantly p)))
+                  :path (if (= ::const (first p))
+                          (constantly (second p))
+                          #(get-in % p))))
         fargs (if (seq args)
                 (apply juxt fargs)
                 (constantly nil)) ]
