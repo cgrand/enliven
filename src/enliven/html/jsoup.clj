@@ -56,3 +56,6 @@
   [stream]
   (with-open [^java.io.Closeable stream stream]
     (->nodes (Jsoup/parse stream "UTF-8" ""))))
+
+(defn parse [^String s]
+  (first (->nodes (org.jsoup.Jsoup/parse s))))
