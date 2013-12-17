@@ -36,3 +36,13 @@
       (and (<= n (count path))
         (= (pop prefix) (subvec path 0 (dec n)))
         (broader-or-equal? (peek prefix) (nth path (dec n)))))))
+
+(defn remove-prefix 
+  "Assumes (broad-prefix? prefix path) is true."
+  [prefix path]
+  (let [n (count prefix)
+        a (peek prefix)
+        b (nth path (dec n))]
+    (into 
+      (if (= a b) [] (let [[fa] a [fb tb] b] [[(- fb fa) (- tb fa)]])) 
+      (subvec path n))))

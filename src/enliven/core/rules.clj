@@ -48,14 +48,17 @@
 
 (declare ^:private nest)
 
-(defmethod mash ::action/dup [[path [op n args subrules]] other-rule]
-  [path [op n args (conj-rule subrules (nest other-rule))]])
+(defn- rebase-rule [[path action] prefix]
+  [(paths/remove-prefix prefix path) action])
 
-(defn ^:private nest-rules [rules]
+(defmethod mash ::action/dup [[path [op n args subrules]] other-rule]
+  [path [op n args (conj-rule subrules (-> other-rule (rebase-rule path) nest))]])
+
+(defn- nest-rules [rules]
   (set (map nest rules)))
 
-(defn ^:private nest [[path action]]
-  [path (-> action (assoc (inc (nth action 1)))
+(defn- nest [[path action]]
+  [path (-> action (assoc 1 (inc (nth action 1)))
           (action/update-subs nest-rules))])
 
 (defmethod mash ::action/discard
