@@ -58,8 +58,8 @@
     (::plan/action plan) (emit-dynamic attrs plan emit-attrs)
     (some seg/special-keyword? (keys plan)) (emit-dynamic attrs plan emit-attrs)
     :else
-    (let [untoucheds (reduce attrs dissoc (keys plan))
-          toucheds (reduce attrs dissoc (keys untoucheds))]
+    (let [untoucheds (reduce dissoc attrs (keys plan))
+          toucheds (reduce dissoc attrs (keys untoucheds))]
       [(emit-attrs untoucheds nil) (emit-dynamic toucheds plan emit-attrs)])))
 
 (defn emit-fragment [nodes plan]
