@@ -8,10 +8,10 @@
 
 (declare plan)
 
-(defn- plan-in [plan path action]
+(defn- plan-in [wip-plan path action]
   (if-let [[seg & segs] (seq path)]
-    (assoc plan seg (plan-in (get plan seg empty-plan) segs action))
-    (assoc plan ::action (action/update-subs action plan))))
+    (assoc wip-plan seg (plan-in (get wip-plan seg empty-plan) segs action))
+    (assoc wip-plan ::action (action/update-subs action plan))))
 
 (defn plan [rules]
   (reduce (fn [plan [path action]] (plan-in plan path action))
