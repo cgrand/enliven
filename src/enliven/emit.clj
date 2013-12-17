@@ -1,6 +1,7 @@
 (ns enliven.emit
   (:require [enliven.core.segments :as seg]
-    [enliven.core.plans :as plan]))
+    [enliven.core.plans :as plan]
+    [enliven.core.actions :as action]))
 
 (defn- flat-reduce [f acc x]
   (if (or (fn? x) (string? x))
@@ -17,13 +18,22 @@
 (defn known-segs-only? [plan known-segs]
   (every? known-segs (keys plan)))
 
-(declare emit render)
+(declare emit render*)
 
 (defn emit-dynamic 
   ([node plan]
     (emit-dynamic node plan emit))
   ([node plan emit]
-    (fn [f acc stack] (-> plan (plan/execute node stack) (emit nil) (render nil f acc)))))
+    (if-let [action (::plan/action plan)]
+      (let [action (action/update-subs action #(-> node (emit %) tighten))]
+        (fn [f acc stack]
+          (render* (action/perform action node stack
+                     (fn [emitted node stack]
+                       (fn [f acc _]
+                         (render* emitted stack f acc))))
+            nil f acc)))
+      (fn [f acc stack]
+        (-> plan (plan/execute node stack) (emit nil) (render* nil f acc))))))
 
 (def escape-text-node str) ; TODO
 
@@ -87,12 +97,15 @@
     (nil? node) nil
     :else (throw (ex-info "Unexpected node" {:node node}))))
 
+(defn render* [emitted stack f acc]
+  (cond 
+    (fn? emitted) (emitted f acc stack)
+    (string? emitted) (f acc emitted)
+    :else (reduce #(render* %2 stack f %1) acc emitted)))
+
 (defn render
   ([emitted data]
     (str (render emitted data (fn [^StringBuilder sb s] (.append sb s))
           (StringBuilder.))))
   ([emitted data f acc]
-    (cond 
-      (fn? emitted) (emitted f acc (list data))
-      (string? emitted) (f acc emitted)
-      :else (reduce #(render %2 data f %1) acc emitted))))
+    (render* emitted (list data) f acc)))
