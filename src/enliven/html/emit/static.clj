@@ -1,4 +1,4 @@
-(ns enliven.emit
+(ns enliven.html.emit.static
   (:require [enliven.core.segments :as seg]
     [enliven.core.plans :as plan]
     [enliven.core.actions :as action]))
