@@ -24,7 +24,7 @@
   ([node plan]
     (emit-dynamic node plan emit))
   ([node plan emit]
-    (if-let [action (::plan/action plan)]
+    (if-let [action (:action plan)]
       (let [action (action/update-subs action #(-> node (emit %) tighten))]
         (fn [f acc stack]
           (render* (action/perform action node stack
@@ -55,17 +55,17 @@
                         (cond 
                           (true? v) (name attr) 
                           v [" " (name attr) "='" (escape-attr-value v) "'"])) attrs)
-    (::plan/action plan) (emit-dynamic attrs plan emit-attrs)
-    (some seg/special-keyword? (keys plan)) (emit-dynamic attrs plan emit-attrs)
+    (:action plan) (emit-dynamic attrs plan emit-attrs)
+    (not-every? keyword? (keys (:misc plan))) (emit-dynamic attrs plan emit-attrs)
     :else
-    (let [untoucheds (reduce dissoc attrs (keys plan))
+    (let [untoucheds (reduce dissoc attrs (keys (:misc plan)))
           toucheds (reduce dissoc attrs (keys untoucheds))]
       [(emit-attrs untoucheds nil) (emit-dynamic toucheds plan emit-attrs)])))
 
 (defn emit-fragment [nodes plan]
   (cond
     (nil? plan) (map #(emit % nil) nodes)
-    (::plan/action plan) (emit-dynamic nodes plan)
+    (:action plan) (emit-dynamic nodes plan)
     :else (let [[emitted nodes-left]
                 (reduce 
                   (fn [[emitted nodes-left] [x subplan]]
@@ -74,17 +74,19 @@
                       [(conj emitted (map #(emit % nil) (subvec nodes-left to))
                          (emit subnode subplan))
                        (subvec nodes-left 0 from)])) 
-                  [() (vec nodes)] (rseq plan))]
+                  [() (vec nodes)] (concat (rseq (:number plan))
+                                     (rseq (:range plan))))]
             (conj emitted (map #(emit % nil) nodes-left)))))
 
 (defn emit-element [node plan]
   (cond
-    (::plan/action plan) (emit-dynamic node plan)
-    (known-segs-only? plan #{:tag :attrs :content}) ; includes fully static
-      (let [tag (emit-tag (:tag node) (:tag plan))]
+    (:action plan) (emit-dynamic node plan)
+    (known-segs-only? (:misc plan) #{:tag :attrs :content}) ; includes the fully static case
+      (let [plan-by-seg (:misc plan)
+            tag (emit-tag (:tag node) (:tag plan-by-seg))]
         ["<" tag 
-         (emit-attrs (:attrs node) (:attrs plan))
-         ">" (emit-fragment (:content node) (:content plan))
+         (emit-attrs (:attrs node) (:attrs plan-by-seg))
+         ">" (emit-fragment (:content node) (:content plan-by-seg))
          "</" tag ">"])
     :else ; dynamic for now but we could do a bit better 
     (emit-dynamic node plan)))
