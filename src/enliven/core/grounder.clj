@@ -4,12 +4,18 @@
     [enliven.core.selectors :as sel]
     [enliven.core.locs :as loc]))
 
-(declare ground)
+;; a transformation is a function from loc to seq of rules
+(defn- ground-transformation [transformation node]
+  (transformation (loc/loc node)))
 
-(defn- ground-directive [[selector action] node]
-  (for [loc (sel/locs node selector)]
-    [(loc/path loc) (action/update-subs action ground (loc/node loc))]))
-
-(defn ground [directives node]
+(defn ground [transformations node]
   (reduce rules/conj-rule rules/id
-    (mapcat #(ground-directive % node) directives)))
+    (mapcat #(ground-transformation % node) transformations)))
+
+(defn simple-transformation [selector action]
+  (fn [loc]
+    (for [loc (selector loc)]
+      [(loc/path loc) (action/update-subs action ground-transformation (loc/node loc))])))
+
+(defn composite-transformation [transformations]
+  (fn [loc] (mapcat #(% loc) transformations)))

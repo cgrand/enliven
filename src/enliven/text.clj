@@ -1,7 +1,8 @@
 (ns enliven.text
   (:require [enliven.core.segments :as seg]
     [enliven.core.locs :as loc]
-    [enliven.core.actions :as action]))
+    [enliven.core.actions :as action]
+    [enliven.core.grounder :as grounder]))
 
 (seg/defsegment chars [s cs]
   :fetch (vec s)
@@ -21,5 +22,6 @@
     selector))
 
 (defn replace [selector path]
-  [[(sel selector) (action/replace path)]])
+  (grounder/simple-directive
+    (sel selector) (action/replace path)))
 

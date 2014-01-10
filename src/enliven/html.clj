@@ -28,41 +28,49 @@
   "Set a class (on the selected elements) when the value at the corresponding path in the model is true."
   {:arglists '([selector class path & class+paths])}
   [selector & class+paths]
-  (let [selector (sel selector)]
-    (for [[class path] (partition 2 class+paths)]
-      [(sel/chain selector (sel/by-path [:attrs :class classes (name class)]))
-       (action/replace path)])))
+  (grounder/composite-transformation
+    (let [selector (sel selector)]
+      (for [[class path] (partition 2 class+paths)]
+        (grounder/simple-transformation
+          (sel/chain selector (sel/by-path [:attrs :class classes (name class)]))
+          (action/replace path))))))
 
 (defn attr 
   "Set an attribute (on the selected elements) to the value at the corresponding path in the model."
   {:arglists '([selector attr path & attr+paths])}
   [selector & attr+paths]
-  (let [selector (sel selector)]
-    (for [[attr path] (partition 2 attr+paths)]
-      [(sel/chain selector (sel/by-path [:attrs (keyword attr)]))
-       (action/replace path)])))
+  (grounder/composite-transformation
+    (let [selector (sel selector)]
+      (for [[attr path] (partition 2 attr+paths)]
+        (grounder/simple-transformation
+          (sel/chain selector (sel/by-path [:attrs (keyword attr)]))
+          (action/replace path))))))
 
 (defn content
   "Set the content (of the selected elements) the value at the path in the model."
   [selector path]
-  (let [selector (sel selector)]
-    [[(sel/chain selector (sel/by-path [:content (seg/slice 0 java.lang.Long/MAX_VALUE)])) (action/replace path)]]))
+  (grounder/simple-transformation 
+    (sel/chain (sel selector) (sel/by-path [:content (seg/slice 0 java.lang.Long/MAX_VALUE)]))
+    (action/replace path)))
 
 (defn prepend [selector path]
-  (let [selector (sel selector)]
-    [[(sel/chain selector (sel/by-path [:content (seg/slice 0 0)])) (action/replace path)]]))
+  (grounder/simple-transformation
+    (sel/chain (sel selector) (sel/by-path [:content (seg/slice 0 0)]))
+    (action/replace path)))
 
 (defn append [selector path]
-  (let [selector (sel selector)]
-    [[(sel/chain selector (sel/by-path [:content (seg/slice java.lang.Long/MAX_VALUE java.lang.Long/MAX_VALUE)])) (action/replace path)]]))
+  (grounder/simple-transformation
+    (sel/chain (sel selector) (sel/by-path [:content (seg/slice java.lang.Long/MAX_VALUE java.lang.Long/MAX_VALUE)]))
+    (action/replace path)))
 
 (defn dup 
   "Dup[licate] the selected nodes for each item in the collection at the path in the model.
   Each copy is then transformed using the specified transformations.
   For these transformatons the model is restricted to the item."
   [selector path & transformations]
-  (let [selector (sel selector)]
-    [[selector (action/dup path (reduce into #{} transformations))]]))
+  (grounder/simple-transformation
+    (sel selector)
+    (action/dup path (grounder/composite-transformation transformations))))
 
 #_(defn if [selector test then else]
    [[selector [::action/if 0 [test] then else]]])
@@ -71,9 +79,7 @@
    [[selector action/discard]])
 
 ;; crude
-(defn template [src & transformations]
-  (let [node src
-        plan (-> (reduce into #{} transformations)
-               (grounder/ground node) plan/plan)
+(defn template [node & transformations]
+  (let [plan (plan/plan (grounder/ground transformations node))
         emitted (->> plan (static/emit node) tighten)]
     (fn [data] (render emitted data))))
