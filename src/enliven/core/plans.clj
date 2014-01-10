@@ -4,8 +4,8 @@
 
 ;; a plan is a hierarchichal representation of a set of rules
 
-(def empty-plan {:range (sorted-map-by seg/cmp-range)
-                 :number (sorted-map)
+(def empty-plan {:range (sorted-map-by (comp - compare))
+                 :number (sorted-map-by >)
                  :misc {}})
 
 (declare plan)
@@ -30,7 +30,7 @@
   (if-let [action (:action plan)]
     (action/perform action node stack execute)
     (reduce (fn [node plan-by-seg]
-      (reduce-kv (fn [node seg plan]
-                  (seg/update node seg exec plan stack))
-        node plan-by-seg))
+              (reduce-kv (fn [node seg plan]
+                          (seg/update node seg exec plan stack))
+                node plan-by-seg))
       node (vals plan))))

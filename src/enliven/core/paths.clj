@@ -1,4 +1,5 @@
-(ns enliven.core.paths)
+(ns enliven.core.paths
+  (:require [enliven.core.segments :as seg]))
 
 ;; paths are made of segments
 ;; segments are keywords or numbers or ranges [from to] (to exclusive)
@@ -10,21 +11,24 @@
   (loop [range-mode false segs segs path []]
     (if-let [[seg & segs] (seq segs)]
       (if range-mode
-        (if (vector? seg)
+        (if (seg/slice? seg)
           (let [[pfrom] (peek path)
-                [from to] seg]
-            (recur true segs (-> path pop (conj [(+ pfrom from) (+ pfrom to)]))))
+                [from to] (seg/bounds seg)]
+            (recur true segs (-> path pop (conj (seg/slice (+ pfrom from) (+ pfrom to))))))
           (recur false segs (conj path seg)))
-        (recur (vector? seg) segs 
+        (recur (seg/slice? seg) segs
           (if (number? seg)
-            (conj path [seg (inc seg)] 0)
+            (conj path (seg/slice seg (inc seg)) 0)
             (conj path seg))))
       path)))
 
+(defn path [path-or-seg]
+  ())
+
 (defn- broader-or-equal? [a b]
   (or (= a b)
-    (and (vector? a) ; if a is a vector then b is a vector because of the canonicalization
-      (let [[fa ta] a [fb tb] b]
+    (and (seg/slice? a) ; if a is a slice then b is a slice because of the canonicalization
+      (let [[fa ta] (seg/bounds a) [fb tb] (seg/bounds b)]
         (<= fa fb tb ta)))))
 
 (defn broad-prefix? 
@@ -44,5 +48,6 @@
         a (peek prefix)
         b (nth path (dec n))]
     (into 
-      (if (= a b) [] (let [[fa] a [fb tb] b] [[(- fb fa) (- tb fa)]])) 
+      (if (= a b) [] (let [[fa] (seg/bounds a) [fb tb] (seg/bounds b)]
+                       [(seg/slice (- fb fa) (- tb fa))]))
       (subvec path n))))

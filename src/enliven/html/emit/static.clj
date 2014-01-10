@@ -1,28 +1,19 @@
 (ns enliven.html.emit.static
   (:require [enliven.core.segments :as seg]
+    [enliven.commons.emit.static :refer [tighten render*]]
+    enliven.text enliven.text.emit.static
     [enliven.core.plans :as plan]
     [enliven.core.actions :as action]))
-
-(defn- flat-reduce [f acc x]
-  (if (or (fn? x) (string? x))
-    (f acc x)
-    (reduce (partial flat-reduce f) acc x)))
-
-(defn tighten [x]
-  (flat-reduce (fn [v x]
-                 (if (and (string? (peek v)) (string? x))
-                   (conj (pop v) (str (peek v) x))
-                   (conj v x)))
-    [] x))
 
 (defn known-segs-only? [plan known-segs]
   (every? known-segs (keys plan)))
 
-(declare emit render*)
+(declare emit)
 
-(defn emit-dynamic 
+(defn emit-action
+  "Compiles to fn when no clue of how to better compile."
   ([node plan]
-    (emit-dynamic node plan emit))
+    (emit-action node plan emit))
   ([node plan emit]
     (if-let [action (:action plan)]
       (let [action (action/update-subs action #(-> node (emit %) tighten))]
@@ -35,19 +26,25 @@
       (fn [f acc stack]
         (-> plan (plan/execute node stack) (emit nil) (render* nil f acc))))))
 
-(def escape-text-node str) ; TODO
+(defn escape-text-node [^String text-node]
+  (-> text-node (.replace "&" "&amp;") (.replace "<" "&lt;")))
+
+(defn escape-attr-value [^String attr-value]
+  (-> attr-value (.replace "&" "&amp;") (.replace "'" "&quot;")))
 
 (defn emit-text-node [node plan]
   (if plan
-    (emit-dynamic node plan)
+    (if-let [char-plan (some-> plan :misc (get enliven.text/chars))]
+      (enliven.text.emit.static/emit-chars
+        (seg/fetch node enliven.text/chars)
+        char-plan)
+      (emit-action node plan))
     (escape-text-node node)))
 
 (defn emit-tag [tag plan]
   (if plan
-    (emit-dynamic tag plan emit-tag)
+    (emit-action tag plan emit-tag)
     (name tag)))
-
-(def escape-attr-value str) ; TODO
 
 (defn emit-attrs [attrs plan]
   (cond
@@ -55,17 +52,17 @@
                         (cond 
                           (true? v) (name attr) 
                           v [" " (name attr) "='" (escape-attr-value v) "'"])) attrs)
-    (:action plan) (emit-dynamic attrs plan emit-attrs)
-    (not-every? keyword? (keys (:misc plan))) (emit-dynamic attrs plan emit-attrs)
+    (:action plan) (emit-action attrs plan emit-attrs)
+    (not-every? keyword? (keys (:misc plan))) (emit-action attrs plan emit-attrs)
     :else
     (let [untoucheds (reduce dissoc attrs (keys (:misc plan)))
           toucheds (reduce dissoc attrs (keys untoucheds))]
-      [(emit-attrs untoucheds nil) (emit-dynamic toucheds plan emit-attrs)])))
+      [(emit-attrs untoucheds nil) (emit-action toucheds plan emit-attrs)])))
 
 (defn emit-fragment [nodes plan]
   (cond
     (nil? plan) (map #(emit % nil) nodes)
-    (:action plan) (emit-dynamic nodes plan)
+    (:action plan) (emit-action nodes plan)
     :else (let [[emitted nodes-left]
                 (reduce 
                   (fn [[emitted nodes-left] [x subplan]]
@@ -74,13 +71,13 @@
                       [(conj emitted (map #(emit % nil) (subvec nodes-left to))
                          (emit subnode subplan))
                        (subvec nodes-left 0 from)])) 
-                  [() (vec nodes)] (concat (rseq (:number plan))
-                                     (rseq (:range plan))))]
+                  [() (vec nodes)] (concat (:number plan)
+                                     (:range plan)))]
             (conj emitted (map #(emit % nil) nodes-left)))))
 
 (defn emit-element [node plan]
   (cond
-    (:action plan) (emit-dynamic node plan)
+    (:action plan) (emit-action node plan)
     (known-segs-only? (:misc plan) #{:tag :attrs :content}) ; includes the fully static case
       (let [plan-by-seg (:misc plan)
             tag (emit-tag (:tag node) (:tag plan-by-seg))]
@@ -89,25 +86,14 @@
          ">" (emit-fragment (:content node) (:content plan-by-seg))
          "</" tag ">"])
     :else ; dynamic for now but we could do a bit better 
-    (emit-dynamic node plan)))
+    (emit-action node plan)))
 
-(defn emit [node plan]
+(defn emit
+  "Compiles to T where T is String | Fn | coll of T."
+  [node plan]
   (cond
     (string? node) (emit-text-node node plan)
     (:tag node) (emit-element node plan)
     (sequential? node) (emit-fragment node plan)
     (nil? node) nil
     :else (throw (ex-info "Unexpected node" {:node node}))))
-
-(defn render* [emitted stack f acc]
-  (cond 
-    (fn? emitted) (emitted f acc stack)
-    (string? emitted) (f acc emitted)
-    :else (reduce #(render* %2 stack f %1) acc emitted)))
-
-(defn render
-  ([emitted data]
-    (str (render emitted data (fn [^StringBuilder sb s] (.append sb s))
-          (StringBuilder.))))
-  ([emitted data f acc]
-    (render* emitted (list data) f acc)))

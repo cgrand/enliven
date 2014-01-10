@@ -28,31 +28,44 @@
 (defn- bound [mn n mx]
   (-> n (max mn) (min mx)))
 
-(extend-type clojure.lang.APersistentVector
+(defrecord Slice [from to]
   Segment 
-  (-fetch [[from to] x]
+  (-fetch [seg x]
     (let [n (count x)]
       (subvec x (bound 0 from n) (bound 0 to n))))
-  (-putback [[from to] x v]
+  (-putback [seg x v]
     (let [n (count x)]
       (-> x 
         (subvec 0 (bound 0 from n))
         (into (if (sequential? v) v (list v)))
         (into (subvec x (bound 0 to n) n)))))
-  (-expr [seg] seg))
+  (-expr [seg] (list `slice from to))
+  Comparable
+  (compareTo [a b]
+    (cond
+      (= a b) 0
+      (<= (:to a) (:from b)) -1
+      :else +1)))
+
+(defn slice [from to] (Slice. from to))
+
+(defn slice? [seg] (instance? Slice seg))
 
 (defn seg-class [seg]
   (cond
-    (vector? seg) :range
+    (slice? seg) :range
     (number? seg) :number
     :else :misc))
 
-(defn bounds [seg v]
-  (let [[from to] (case (seg-class seg)
-                    :range seg
-                    :number [seg (inc seg)])
-        n (count v)]
-    [(bound 0 from n) (bound 0 to n)]))
+(defn bounds
+  ([seg]
+    (case (seg-class seg)
+                      :range [(:from seg) (:to seg)]
+                      :number [seg (inc seg)]))
+  ([seg v]
+    (let [[from to] (bounds seg)
+          n (count v)]
+      [(bound 0 from n) (bound 0 to n)])))
 
 (defmacro defsegment [name [value-arg subvalue-arg & args] & methods]
   (let [fqname (symbol (clojure.core/name (ns-name *ns*)) 
@@ -81,11 +94,3 @@
                  (hashCode [this#] (hash (-expr this#)))
                  (toString [this#] (pr-str (-expr this#))))))]
     `(def ~name ~(if auto-segment (list f) f))))
-
-(defn cmp-range
-  "Compare disjoint ranges."
-  [a b]
-  (cond
-    (= a b) 0
-    (<= (nth a 1) (nth b 0)) -1
-    :else +1))
