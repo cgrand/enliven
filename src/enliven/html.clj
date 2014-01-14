@@ -176,5 +176,7 @@
 ;; crude
 (defn template [node & transformations]
   (let [plan (plan/plan (grounder/ground transformations node))
-        emitted (->> plan (static/emit node) tighten)]
-    (fn [data] (render emitted data))))
+        emitted (common/tight-fn-emit! (static/prerender node plan common/tight-fn-emit! (common/tight-fn-emit!)))]
+    (fn
+      ([data] (common/render emitted data))
+      ([data emit acc] (common/render emitted data emit acc)))))

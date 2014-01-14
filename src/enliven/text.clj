@@ -22,6 +22,6 @@
     selector))
 
 (defn replace [selector path]
-  (grounder/simple-directive
+  (grounder/simple-transformation
     (sel selector) (action/replace path)))
 

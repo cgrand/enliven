@@ -1,6 +1,6 @@
 (ns enliven.html.emit.static
   (:require [enliven.core.segments :as seg]
-    [enliven.commons.emit.static :refer [tighten render*]]
+    [enliven.commons.emit.static :as static]
     enliven.text enliven.text.emit.static
     [enliven.core.plans :as plan]
     [enliven.core.actions :as action]))
@@ -8,92 +8,77 @@
 (defn known-segs-only? [plan known-segs]
   (every? known-segs (keys plan)))
 
-(declare emit)
+(declare prerender)
 
-(defn emit-action
-  "Compiles to fn when no clue of how to better compile."
-  ([node plan]
-    (emit-action node plan emit))
-  ([node plan emit]
-    (if-let [action (:action plan)]
-      (let [action (action/update-subs action #(-> node (emit %) tighten))]
-        (fn [f acc stack]
-          (render* (action/perform action node stack
-                     (fn [emitted node stack]
-                       (fn [f acc _]
-                         (render* emitted stack f acc))))
-            nil f acc)))
-      (fn [f acc stack]
-        (-> plan (plan/execute node stack) (emit nil) (render* nil f acc))))))
-
-(defn escape-text-node [^String text-node]
-  (-> text-node (.replace "&" "&amp;") (.replace "<" "&lt;")))
+(defn escape-text-node [text-node]
+  (-> text-node str (.replace "&" "&amp;") (.replace "<" "&lt;")))
 
 (defn escape-attr-value [^String attr-value]
   (-> attr-value (.replace "&" "&amp;") (.replace "'" "&quot;")))
 
-(defn emit-text-node [node plan]
+(defn prerender-text-node [node plan emit acc]
   (if plan
-    (if-let [char-plan (some-> plan :misc (get enliven.text/chars))]
-      (enliven.text.emit.static/emit-chars
-        (seg/fetch node enliven.text/chars)
-        char-plan)
-      (emit-action node plan))
-    (escape-text-node node)))
+    (let [enc-emit (static/compose-encoding emit escape-text-node)]
+      (if-let [char-plan (some-> plan :misc (get enliven.text/chars))]
+        (enliven.text.emit.static/prerender-text
+          (seg/fetch node enliven.text/chars)
+          char-plan
+          enc-emit acc)
+        (static/prerender-unknown node plan prerender enc-emit acc)))
+    (emit acc (escape-text-node node))))
 
-(defn emit-tag [tag plan]
+(defn prerender-tag [tag plan emit acc]
   (if plan
-    (emit-action tag plan emit-tag)
-    (name tag)))
+    (static/prerender-unknown tag plan prerender-tag emit acc)
+    (emit acc (name tag))))
 
-(defn emit-attrs [attrs plan]
+(defmacro ^:private inline-emit [emit acc & coll]
+  (let [emitsym (gensym 'emit)]
+    `(let [~emitsym ~emit]
+       ~(reduce (fn [acc x]
+                  (if (and (seq? x) (= `clojure.core/unquote (first x)))
+                    (let [expr (second x)]
+                      (concat (if (seq? expr) expr (list expr)) [emitsym acc]))
+                    (list emitsym acc x)))
+          acc coll))))
+
+(defn- render-attrs [attrs emit acc]
+  (reduce-kv (fn [acc attr v]
+               (cond 
+                 (true? v) (emit acc (name attr)) 
+                 v (inline-emit emit acc " " (name attr) 
+                     "='" (escape-attr-value v) "'")
+                 :else acc))
+    acc attrs))
+
+(defn prerender-attrs [attrs plan emit acc]
   (cond
-    (nil? plan) (keep (fn [[attr v]] 
-                        (cond 
-                          (true? v) (name attr) 
-                          v [" " (name attr) "='" (escape-attr-value v) "'"])) attrs)
-    (:action plan) (emit-action attrs plan emit-attrs)
-    (not-every? keyword? (keys (:misc plan))) (emit-action attrs plan emit-attrs)
+    (nil? plan) (render-attrs attrs emit acc)
+    (or (:action plan) (not-every? keyword? (keys (:misc plan))))
+      (static/prerender-unknown attrs plan prerender-attrs emit acc)
     :else
     (let [untoucheds (reduce dissoc attrs (keys (:misc plan)))
           toucheds (reduce dissoc attrs (keys untoucheds))]
-      [(emit-attrs untoucheds nil) (emit-action toucheds plan emit-attrs)])))
+      (inline-emit emit acc 
+        ~(render-attrs untoucheds)
+        ~(static/prerender-unknown toucheds plan prerender-attrs)))))
 
-(defn emit-fragment [nodes plan]
-  (cond
-    (nil? plan) (map #(emit % nil) nodes)
-    (:action plan) (emit-action nodes plan)
-    :else (let [[emitted nodes-left]
-                (reduce 
-                  (fn [[emitted nodes-left] [x subplan]]
-                    (let [[from to] (seg/bounds x nodes)
-                          subnode (seg/fetch nodes-left x)]
-                      [(conj emitted (map #(emit % nil) (subvec nodes-left to))
-                         (emit subnode subplan))
-                       (subvec nodes-left 0 from)])) 
-                  [() (vec nodes)] (concat (:number plan)
-                                     (:range plan)))]
-            (conj emitted (map #(emit % nil) nodes-left)))))
+(defn prerender-element [node plan emit acc]
+  (if (and (not (:action plan)) (known-segs-only? (:misc plan) #{:tag :attrs :content}))
+    (let [plan-by-seg (:misc plan)]
+      (inline-emit emit acc
+        "<" ~(prerender-tag (:tag node) (:tag plan-by-seg))
+         ~(prerender-attrs (:attrs node) (:attrs plan-by-seg))
+         ">" ~(prerender (:content node) (:content plan-by-seg))
+         "</" ~(prerender-tag (:tag node) (:tag plan-by-seg)) ">"))
+    (static/prerender-unknown node plan prerender emit acc)))
 
-(defn emit-element [node plan]
+(defn prerender
+  "During prerendering, strings, chars and fns are expected to be emitted."
+  [node plan emit acc]
   (cond
-    (:action plan) (emit-action node plan)
-    (known-segs-only? (:misc plan) #{:tag :attrs :content}) ; includes the fully static case
-      (let [plan-by-seg (:misc plan)
-            tag (emit-tag (:tag node) (:tag plan-by-seg))]
-        ["<" tag 
-         (emit-attrs (:attrs node) (:attrs plan-by-seg))
-         ">" (emit-fragment (:content node) (:content plan-by-seg))
-         "</" tag ">"])
-    :else ; dynamic for now but we could do a bit better 
-    (emit-action node plan)))
-
-(defn emit
-  "Compiles to T where T is String | Fn | coll of T."
-  [node plan]
-  (cond
-    (string? node) (emit-text-node node plan)
-    (:tag node) (emit-element node plan)
-    (sequential? node) (emit-fragment node plan)
-    (nil? node) nil
+    (string? node) (prerender-text-node node plan emit acc)
+    (:tag node) (prerender-element node plan emit acc)
+    (sequential? node) (static/prerender-fragment node plan prerender emit acc)
+    (nil? node) acc
     :else (throw (ex-info "Unexpected node" {:node node}))))
