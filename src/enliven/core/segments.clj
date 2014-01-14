@@ -20,13 +20,11 @@
              :-putback #(assoc %2 %1 %3)
              :-expr identity}))
 
-(extend Number
-  Segment {:-fetch #(get %2 %1)
-           :-putback #(assoc %2 %1 %3)
-           :-expr identity})
-
 (defn- bound [mn n mx]
   (-> n (max mn) (min mx)))
+
+(defn spliceable? [x]
+  (or (nil? x) (sequential? x)))
 
 (defrecord Slice [from to]
   Segment 
@@ -37,7 +35,7 @@
     (let [n (count x)]
       (-> x 
         (subvec 0 (bound 0 from n))
-        (into (if (sequential? v) v (list v)))
+        (into (if (spliceable? v) v (list v)))
         (into (subvec x (bound 0 to n) n)))))
   (-expr [seg] (list `slice from to))
   Comparable
@@ -50,6 +48,11 @@
 (defn slice [from to] (Slice. from to))
 
 (defn slice? [seg] (instance? Slice seg))
+
+(extend Number
+  Segment {:-fetch #(nth %2 %1)
+           :-putback #(assoc %2 %1 %3)
+           :-expr identity})
 
 (defn seg-class [seg]
   (cond
