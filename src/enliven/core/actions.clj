@@ -15,21 +15,3 @@
 
 (defmethod update-subs ::dup [action f & args] 
   (assoc action 3 (apply f (nth action 3) args)))
-
-(defmulti perform (fn [[op] node stack exec] op))
-
-(defmethod perform ::replace [[op n [path]] node stack exec]
-  (-> stack (nth n) (get-in path)))
-
-(defmethod perform ::discard [[op n [path]] node stack exec]
-  nil) ; should return a ::tombstone?
-
-(defmethod perform ::if [[op n [path] then else] node stack exec]
-  (if (-> stack (nth n) (get-in path))
-    (exec then node stack)
-    (exec else node stack)))
-
-(defmethod perform ::dup [[op n [path] sub] node stack exec]
-  (for [item (-> stack (nth n) (get-in path))
-        :let [stack (conj stack item)]]
-    (exec sub node stack)))

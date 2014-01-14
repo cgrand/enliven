@@ -4,8 +4,8 @@
 
 ;; a plan is a hierarchichal representation of a set of rules
 
-(def empty-plan {:range (sorted-map-by (comp - compare))
-                 :number (sorted-map-by >)
+(def empty-plan {:range (sorted-map)
+                 :number (sorted-map)
                  :misc {}})
 
 (declare plan)
@@ -21,16 +21,27 @@
   (reduce (fn [plan [path action]] (plan-in plan path action))
     empty-plan rules))
 
-(declare execute)
+(defmulti perform (fn [[op] stack exec node] op))
 
-(defn- exec [node plan stack]
-  (execute plan node stack))
-
-(defn execute [plan node stack]
+(defn execute [node plan stack]
   (if-let [action (:action plan)]
-    (action/perform action node stack execute)
-    (reduce (fn [node plan-by-seg]
-              (reduce-kv (fn [node seg plan]
-                          (seg/update node seg exec plan stack))
-                node plan-by-seg))
-      node (vals plan))))
+    (perform action stack node)
+    (reduce-kv (fn [node seg plan]
+                 (seg/update node seg execute plan stack))
+      node (concat (:misc plan) (rseq (:number plan)) (rseq (:range plan))))))
+
+(defmethod perform ::action/replace [[op n [path]] stack node]
+  (-> stack (nth n) (get-in path)))
+
+(defmethod perform ::action/discard [[op n [path]] stack node]
+  nil)
+
+(defmethod perform ::action/if [[op n [path] then else] stack node]
+  (if (-> stack (nth n) (get-in path))
+    (execute node then stack)
+    (execute node else stack)))
+
+(defmethod perform ::action/dup [[op n [path] sub] stack node]
+  (map (fn [item]
+         (execute node sub (conj stack item)))
+    (-> stack (nth n) (get-in path))))
