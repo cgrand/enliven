@@ -11,11 +11,12 @@
 (declare plan-in)
 
 (defn plan
-  ([rules] (plan empty-plan rules))
+  ([rules] 
+    (plan empty-plan rules))
   ([wip-plan rules]
     (reduce (fn [wip-plan [path action]]
               (plan-in wip-plan path action))
-      empty-plan rules)))
+      wip-plan rules)))
 
 (defmulti ^:private mash (fn [[op :as planned-action] path sub-action]
                            op))
