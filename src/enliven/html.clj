@@ -25,6 +25,11 @@
 (defn text-node [loc]
   (when (string? (loc/node loc)) (list loc)))
 
+(defn element [loc]
+  (let [node (loc/node loc)] 
+    (when (and (map? node) (:tag node))
+      (list loc))))
+
 (defn descendants [loc]
   (mapcat #(cons % (descendants %)) (children loc)))
 
@@ -145,17 +150,17 @@
   "Set the content (of the selected elements) the value at the path in the model."
   [selector path]
   (grounder/simple-transformation 
-    (sel/chain (sel selector) (sel/by-path [:content (seg/slice 0 java.lang.Long/MAX_VALUE)]))
+    (sel/chain (sel selector) element (sel/by-path [:content (seg/slice 0 java.lang.Long/MAX_VALUE)]))
     (action/replace path)))
 
 (defn prepend [selector path]
   (grounder/simple-transformation
-    (sel/chain (sel selector) (sel/by-path [:content (seg/slice 0 0)]))
+    (sel/chain (sel selector) element (sel/by-path [:content (seg/slice 0 0)]))
     (action/replace path)))
 
 (defn append [selector path]
   (grounder/simple-transformation
-    (sel/chain (sel selector) (sel/by-path [:content (seg/slice java.lang.Long/MAX_VALUE java.lang.Long/MAX_VALUE)]))
+    (sel/chain (sel selector) element (sel/by-path [:content (seg/slice java.lang.Long/MAX_VALUE java.lang.Long/MAX_VALUE)]))
     (action/replace path)))
 
 (defn dup 
