@@ -56,3 +56,11 @@
   (if (sequential? path)
     (reduce seg/fetch x path)
     (seg/fetch x path)))
+
+(defn fetcher-in [path]
+  (if (sequential? path)
+    (reduce (fn
+              ([] identity)
+              ([f g] (comp g f)))
+      (map seg/fetcher path))
+    (seg/fetcher path)))

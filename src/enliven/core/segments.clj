@@ -14,11 +14,24 @@
 (defn update [node seg f & args]
   (putback node seg (apply f (fetch node seg) args)))
 
+(defprotocol SegmentEx
+  (fetcher [seg]))
+
 (doseq [t [clojure.lang.Keyword clojure.lang.Symbol String]]
   (extend t
     Segment {:-fetch #(get %2 %1)
              :-putback #(assoc %2 %1 %3)
              :-expr identity}))
+
+(extend-protocol SegmentEx
+  Object
+  (fetcher [seg] #(-fetch seg %))
+  String
+  (fetcher [seg] #(get % seg)))
+
+(doseq [t [clojure.lang.Keyword clojure.lang.Symbol]]
+  (extend t
+    SegmentEx {:fetcher identity}))
 
 (defn- bound [mn n mx]
   (-> n (max mn) (min mx)))
@@ -38,6 +51,11 @@
         (into (if (spliceable? v) v (list v)))
         (into (subvec x (bound 0 to n) n)))))
   (-expr [seg] (list `slice from to))
+  SegmentEx
+  (fetcher [seg]
+    (fn [x]
+      (let [n (count x)]
+        (subvec x (bound 0 from n) (bound 0 to n)))))
   Comparable
   (compareTo [a b]
     (cond
@@ -52,7 +70,8 @@
 (extend Number
   Segment {:-fetch #(nth %2 %1)
            :-putback #(assoc %2 %1 %3)
-           :-expr identity})
+           :-expr identity}
+  SegmentEx {:fetcher (fn [n] #(nth % n))})
 
 (defn seg-class [seg]
   (cond
@@ -77,6 +96,7 @@
         [args [_ & rest-arg]] (split-with #(not= (clojure.core/name %) "&") args)
         plain-args (take (count args) (repeatedly gensym))
         plain-rest-arg (when rest-arg (gensym))
+        fetch-expr (some (fn [[name expr]] (case name :fetch expr nil)) (partition 2 methods))
         methods (for [[name expr] (partition 2 methods)]
                   (case name
                     :fetch `(-fetch [_# ~value-arg] ~expr)
@@ -90,6 +110,9 @@
                  (-expr [_#] ~(if auto-segment
                                 `'~fqname
                                 `(list* '~fqname ~@plain-args ~plain-rest-arg)))
+                 SegmentEx
+                 (fetcher [_#]
+                   (fn [~value-arg] ~fetch-expr))
                  Object
                  (equals [this# that#]
                    (and (satisfies? Segment that#)
