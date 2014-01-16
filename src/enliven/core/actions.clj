@@ -15,3 +15,6 @@
 
 (defmethod update-subs ::dup [action f & args] 
   (assoc action 3 (apply f (nth action 3) args)))
+
+(defn update-paths [action f & args]
+  (assoc action 2 (mapv #(apply f % args) (nth action 2))))

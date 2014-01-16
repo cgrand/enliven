@@ -1,7 +1,8 @@
 (ns enliven.commons.emit.static
   (:require [enliven.core.actions :as action]
     [enliven.core.plans :as plan]
-    [enliven.core.segments :as seg]))
+    [enliven.core.segments :as seg]
+    [enliven.core.paths :as path]))
 
 (defn tight-emit! 
   ([] [])
@@ -71,26 +72,28 @@
 
 (defmulti perform (fn [[op] stack render emit' acc] op))
 
-(defmethod perform ::action/replace [[op n [path]] stack render emit' acc]
-  (render (-> stack (nth n) (get-in path)) nil emit' acc))
+(defmethod perform ::action/replace [[op n [f]] stack render emit' acc]
+  (render (-> stack (nth n) f) nil emit' acc))
 
-(defmethod perform ::action/discard [[op n [path]] stack render emit' acc]
+(defmethod perform ::action/discard [_ stack render emit' acc]
   acc)
 
-(defmethod perform ::action/if [[op n [path] then else] stack render emit' acc]
-  (if (-> stack (nth n) (get-in path))
+(defmethod perform ::action/if [[op n [f] then else] stack render emit' acc]
+  (if (-> stack (nth n) f)
     (render* then stack emit' acc)
     (render* else stack emit' acc)))
 
-(defmethod perform ::action/dup [[op n [path] sub] stack render emit' acc]
+(defmethod perform ::action/dup [[op n [f] sub] stack render emit' acc]
   (reduce (fn [acc item]
             (render* sub (conj stack item) emit' acc))
-    acc (-> stack (nth n) (get-in path))))
+    acc (-> stack (nth n) f)))
 
 (defn prerender-action [node action prerender emit acc]
-  (let [action (action/update-subs action 
-                 (fn [subplan] 
-                   (emit (prerender node subplan emit (emit)))))]
+  (let [action (-> action 
+                 (action/update-subs 
+                   (fn [subplan] 
+                     (emit (prerender node subplan emit (emit)))))
+                 (action/update-paths path/fetcher-in))]
     (emit acc (fn [emit' acc stack]
                 (perform action stack prerender emit' acc)))))
 
