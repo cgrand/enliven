@@ -1,5 +1,6 @@
 (ns enliven.core.plans
   (:require [enliven.core.segments :as seg]
+    [enliven.core.paths :as path]
     [enliven.core.actions :as action]))
 
 ;; a plan is a hierarchichal representation of a set of rules
@@ -80,17 +81,17 @@
       node (concat (:misc plan) (rseq (:number plan)) (rseq (:range plan))))))
 
 (defmethod perform ::action/replace [[op n [path]] stack node]
-  (-> stack (nth n) (get-in path)))
+  (-> stack (nth n) (path/fetch-in path path)))
 
 (defmethod perform ::action/discard [[op n [path]] stack node]
   nil)
 
 (defmethod perform ::action/if [[op n [path] then else] stack node]
-  (if (-> stack (nth n) (get-in path))
+  (if (-> stack (nth n) (path/fetch-in path))
     (execute node then stack)
     (execute node else stack)))
 
 (defmethod perform ::action/dup [[op n [path] sub] stack node]
   (map (fn [item]
          (execute node sub (conj stack item)))
-    (-> stack (nth n) (get-in path))))
+    (-> stack (nth n) (path/fetch-in path))))

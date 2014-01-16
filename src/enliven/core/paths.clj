@@ -51,3 +51,8 @@
       (if (= a b) [] (let [[fa] (seg/bounds a) [fb tb] (seg/bounds b)]
                        [(seg/slice (- fb fa) (- tb fa))]))
       (subvec path n))))
+
+(defn fetch-in [x path]
+  (if (sequential? path)
+    (reduce seg/fetch x path)
+    (seg/fetch x path)))
