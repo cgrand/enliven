@@ -69,23 +69,22 @@
                     (x (compose-encoding emit' enc) acc stack))
                   (enc x))))))
 
-(defmulti perform (fn [[op] stack exec acc] op))
+(defmulti perform (fn [[op] stack render emit' acc] op))
 
-(defmethod perform ::action/replace [[op n [path]] stack emit acc]
-  ; not sure about this one
-  (render* (-> stack (nth n) (get-in path)) stack emit acc))
+(defmethod perform ::action/replace [[op n [path]] stack render emit' acc]
+  (render (-> stack (nth n) (get-in path)) nil emit' acc))
 
-(defmethod perform ::action/discard [[op n [path]] stack emit acc]
+(defmethod perform ::action/discard [[op n [path]] stack render emit' acc]
   acc)
 
-(defmethod perform ::action/if [[op n [path] then else] stack emit acc]
+(defmethod perform ::action/if [[op n [path] then else] stack render emit' acc]
   (if (-> stack (nth n) (get-in path))
-    (render* then stack emit acc)
-    (render* else stack emit acc)))
+    (render* then stack emit' acc)
+    (render* else stack emit' acc)))
 
-(defmethod perform ::action/dup [[op n [path] sub] stack emit acc]
+(defmethod perform ::action/dup [[op n [path] sub] stack render emit' acc]
   (reduce (fn [acc item]
-            (render* sub (conj stack item) emit acc))
+            (render* sub (conj stack item) emit' acc))
     acc (-> stack (nth n) (get-in path))))
 
 (defn prerender-action [node action prerender emit acc]
@@ -93,7 +92,7 @@
                  (fn [subplan] 
                    (emit (prerender node subplan emit (emit)))))]
     (emit acc (fn [emit' acc stack]
-                (perform action stack emit' acc)))))
+                (perform action stack prerender emit' acc)))))
 
 (defn prerender-unknown
   "When the plan involves unknown segments, fall back to the naive execution model."
