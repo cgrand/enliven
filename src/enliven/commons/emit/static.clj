@@ -103,7 +103,7 @@
     (if-let [action (:action plan)]
       (prerender-action node action prerender emit acc)
       (emit acc (fn [emit' acc stack]
-                  (-> plan (plan/execute node stack) 
+                  (-> node (plan/execute plan stack)
                     (prerender nil emit' acc)))))))
 
 (defn prerender-fragment

@@ -71,17 +71,18 @@
             (assoc empty-plan :action planned-action)
             (unplan wip-plan)))))))
 
-(defmulti perform (fn [[op] stack exec node] op))
+(defmulti perform (fn [[op] stack node] op))
 
 (defn execute [node plan stack]
+  (prn node plan stack)
   (if-let [action (:action plan)]
     (perform action stack node)
-    (reduce-kv (fn [node seg plan]
-                 (seg/update node seg execute plan stack))
+    (reduce (fn [node [seg plan]]
+              (seg/update node seg execute plan stack))
       node (concat (:misc plan) (rseq (:number plan)) (rseq (:range plan))))))
 
 (defmethod perform ::action/replace [[op n [path]] stack node]
-  (-> stack (nth n) (path/fetch-in path path)))
+  (-> stack (nth n) (path/fetch-in path)))
 
 (defmethod perform ::action/discard [[op n [path]] stack node]
   nil)
