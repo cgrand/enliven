@@ -1,6 +1,5 @@
 (ns enliven.core.grounder
-  (:require [enliven.core.rules :as rules]
-    [enliven.core.actions :as action]
+  (:require [enliven.core.actions :as action]
     [enliven.core.selectors :as sel]
     [enliven.core.locs :as loc]
     [enliven.core.segments :as seg]))

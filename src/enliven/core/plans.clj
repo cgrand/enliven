@@ -8,18 +8,66 @@
                  :number (sorted-map)
                  :misc {}})
 
-(declare plan)
+(declare plan-in)
+
+(defn plan
+  ([rules] (plan empty-plan rules))
+  ([wip-plan rules]
+    (reduce (fn [wip-plan [path action]]
+              (plan-in wip-plan path action))
+      empty-plan rules)))
+
+(defmulti ^:private mash (fn [[op :as planned-action] path sub-action]
+                           op))
+
+(defmethod mash :default [planned-action path sub-action]
+  (throw (ex-info "Conflicting rules" 
+           {:planned-action planned-action
+            :path path 
+            :sub-action sub-action})))
+
+(def ^:private nest
+  (letfn [(nest [action]
+            (-> action (assoc 1 (inc (nth action 1)))
+              (action/update-subs nest-rules)))
+          (nest-rules [rules]
+            (set (for [[path action] rules] 
+                   [path (nest action)])))]
+    nest))
+
+(defmethod mash ::action/dup [[op n args sub-plan] path sub-action]
+  [op n args (plan-in sub-plan path (nest sub-action))])
+
+(defmethod mash ::action/discard
+  [planned-action _]
+  planned-action)
+
+(defn unplan [plan]
+  (if-let [planned-action (:action plan)]
+    (let [action (action/update-subs planned-action unplan)]
+      [[() action]])
+    (for [plans-by-seg (vals plan)
+          [seg sub-plan] plans-by-seg 
+          [path action] (unplan sub-plan)]
+      [(conj path seg) action])))
 
 (defn- plan-in [wip-plan path action]
+  {:pre [(or (nil? path) (sequential? path))]}
   (let [wip-plan (or wip-plan empty-plan)]
     (if-let [[seg & segs] (seq path)]
-      (update-in wip-plan [(seg/seg-class seg) seg]
-        plan-in segs action)
-      (assoc wip-plan :action (action/update-subs action plan)))))
-
-(defn plan [rules]
-  (reduce (fn [plan [path action]] (plan-in plan path action))
-    empty-plan rules))
+      (if-let [planned-action (:action wip-plan)]
+        (assoc empty-plan
+          :action (mash planned-action path action))
+        (update-in wip-plan [(seg/seg-class seg) seg]
+          plan-in segs action))
+      (let [planned-action (action/update-subs action plan)]
+        (if-let [other-action (:action wip-plan)]
+          (if (= other-action planned-action)
+            wip-plan
+            (throw (ex-info "Conflicting actions" {:actions [other-action planned-action]})))
+          (plan
+            (assoc empty-plan :action planned-action)
+            (unplan wip-plan)))))))
 
 (defmulti perform (fn [[op] stack exec node] op))
 
