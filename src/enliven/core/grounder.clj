@@ -11,7 +11,7 @@
 (defn simple-transformation [selector action]
   (fn [loc]
     (for [loc (selector loc)]
-      [(loc/path loc) (action/update-subs action ground-transformation (loc/node loc))])))
+      [(loc/path loc) (action/update-subs action ground (loc/node loc))])))
 
 (defn splice-transformation [selector action]
   (fn [loc]
@@ -22,7 +22,7 @@
                          (number? seg) 
                          (-> loc loc/up (loc/down (seg/slice seg (inc seg)))))]
               (when sloc
-                [(loc/path sloc) (action/update-subs action ground-transformation (loc/node loc))])))
+                [(loc/path sloc) (action/update-subs action ground (loc/node loc))])))
       (selector loc))))
 
 (defn composite-transformation [transformations]
