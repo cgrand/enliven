@@ -13,8 +13,13 @@
 (defn escape-text-node [text-node]
   (-> text-node str (.replace "&" "&amp;") (.replace "<" "&lt;")))
 
-(defn escape-attr-value [^String attr-value]
-  (-> attr-value (.replace "&" "&amp;") (.replace "'" "&quot;")))
+(defn escape-attr-value
+  "Escape string for use in an attribute. Avoid escaping ampersands as much as possible.
+   (see HTML5 parsing algorithm)"
+  [^String attr-value]
+  (-> (re-matcher #"&([a-zA-Z0-9]+(?![=a-zA-Z0-9])|#)" attr-value)
+    (.replaceAll "&amp;$1")
+    (.replace "'" "&quot;")))
 
 (defn prerender-text-node [node plan emit acc]
   (if plan
