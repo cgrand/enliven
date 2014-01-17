@@ -10,10 +10,10 @@
     [clojure.string :as str]))
 
 ;; html-specific segments
-(seg/defsegment classes [class-attr classes] 
-  :fetch 
+(seg/defsegment classes [class-attr classes]
+  :fetch
     (zipmap (re-seq #"\S+" (or class-attr "")) (repeat true))
-  :putback 
+  :putback
     (some->> classes (keep (fn [[k v]] (when v k))) seq (str/join " ")))
 
 (defn children [loc]
@@ -26,7 +26,7 @@
   (when (string? (loc/node loc)) (list loc)))
 
 (defn element [loc]
-  (let [node (loc/node loc)] 
+  (let [node (loc/node loc)]
     (when (and (map? node) (:tag node))
       (list loc))))
 
@@ -36,7 +36,7 @@
 (defn descendants-and-self [loc]
   (cons loc (descendants loc)))
 
-(defn loose-chain 
+(defn loose-chain
   ([] list)
   ([& sels] (reduce sel/chain (interpose descendants sels))))
 
@@ -52,7 +52,7 @@
   ([spec]
     (sel spec :root))
   ([spec relationship]
-    (if (sequential? spec) 
+    (if (sequential? spec)
       (first (reduce
                (fn [[r relationship] step]
                  (if (= :> step)
@@ -77,8 +77,8 @@
 
 (extend-protocol ToSelector
   org.w3c.css.sac.SelectorList
-  (as-sel [sels] 
-    (let [sels (map #(as-sel (.item sels %)) (range (.getLength sels)))] 
+  (as-sel [sels]
+    (let [sels (map #(as-sel (.item sels %)) (range (.getLength sels)))]
       (fn [loc]
         (mapcat #(% loc) sels))))
   org.w3c.css.sac.ElementSelector
@@ -103,8 +103,8 @@
     (let [pred (case (long (.getConditionType cond))
                  #=(eval org.w3c.css.sac.Condition/SAC_ATTRIBUTE_CONDITION)
                  (let [k (keyword (.getLocalName cond))]
-                   (if (.getSpecified cond) 
-                     (let [v (.getValue cond)] 
+                   (if (.getSpecified cond)
+                     (let [v (.getValue cond)]
                        #(some-> % loc/node :attrs (get k) (= v)))
                      #(some-> % loc/node :attrs (get k))))
                  #=(eval org.w3c.css.sac.Condition/SAC_CLASS_CONDITION)
@@ -134,7 +134,7 @@
         (sel/chain element (sel/by-path [:attrs :class classes (name class)]))
         (action/replace path)))))
 
-(defn attr 
+(defn attr
   "Set an attribute (on the selected elements) to the value at the corresponding path in the model."
   {:arglists '([attr path & attr+paths])}
   [& attr+paths]
@@ -147,7 +147,7 @@
 (defn content
   "Set the content (of the selected elements) the value at the path in the model."
   [path]
-  (grounder/simple-transformation 
+  (grounder/simple-transformation
     (sel/chain element (sel/by-path [:content (seg/slice 0 java.lang.Long/MAX_VALUE)]))
     (action/replace path)))
 
@@ -161,7 +161,7 @@
     (sel/chain element (sel/by-path [:content (seg/slice java.lang.Long/MAX_VALUE java.lang.Long/MAX_VALUE)]))
     (action/replace path)))
 
-(defn dup 
+(defn dup
   "Dup[licate] the selected nodes for each item in the collection at the path in the model.
   Each copy is then transformed using the specified transformations.
   For these transformatons the model is restricted to the item."
