@@ -1,58 +1,99 @@
-# enliven
+# Enliven
 
-Enliven: a continuous templating system
+Enliven: a (not yet) continuous templating system.
 
-## Manifesto
+*WARNING* very wet paint
 
-Templates as we know them are part of a continuum. A template is at the intersection of presentation and data.
+## Enliven is the successor to Enlive
 
-Usually once the template is rendered, the relationship between the state of an application 
-and its UI is governed by a different piece of code.
+Even dictionaries say so:
 
-A way to deal with this problem is to not server-side template and to do everything on the client.
+> Enlive: To Enliven (Obs.)
 
-Both solutions focus on only one end of the continuum: server-only and client-only.
+Enliven also stands for Enlive N(ext).
 
-Templates are easy because they don't carry state of their own, all state is explicit: 
-it's the piece of data being rendered!
+### Not tied to HTML
 
-Enliven's proposition is to make writing HTML UI as simple as writing templates. No not just as simple but 
-the same.
+Currently Enliven can template plain text (`enliven.text`) and html (`enliven.html`).
+The HTML "domain" is even composite since it uses the text "domain" to template text nodes.
 
-An Enliven template can be used both server-side and client-side without modification.
+### Simpler selectors
 
-A page could be initialized server-side (no more loading artifacts or progress bars) and updated client-side with no code duplication.
+Selectors are now functions from loc to locs. Most domains should expose a `sel` function to coerce
+a domain specific selector (eg a CSS-selector in string or a regex) to a selector fn.
 
-A page could use the history API automatically.
+### Parallel execution of transformations
 
-## Concepts
+All transformations occur at once for maximum declarativeness (and it enables good performance). It follows that two transformations can't work on the same node
+or on a node and one of its ancestors.
 
-### Transformations
+This constraint is heavily mitigated by infinite-resolution selectors and transformation-refined selectors.
 
-Transformations are the basic building block of templates.
+### Infinite-resolution selectors
 
-A transformation conceptually takes two arguments: a node and some data and returns an updated node.
+Selectors don't stop at nodes as specified in the DOM. Any node can be subdivided at will!
 
-A transformation is applied through the `transform` function which takes 3 args: the transformation, the node and the data.
+For example classes in a `class` attribute can be targeted independently. Each character of a text node can be transformed independently.
+You can append/conflict/prepend on an element without conflicts!
 
-Transformations are mashed together with `compose`. Composition is associative, commutative and idempotent.
+However this happens under the hood, see: 
 
-Commutativity means that the order of composition is not important.
+```clj
+(at 
+  "div" (class "important" :important)
+  "div" (class "footnote" :foot-note))
+```
 
-Associativity means that the nesting of composition is not important.
+Those two transformations won't conflict because they refine their selector.
 
-Idempotency means that repeating a transformation is not important.
+### Point-free
 
-`(content)` is a transformation which sets the content of the current node with the current data.
+Templates take a single argument which is the data model to render.
 
-`(content :foo)` is a transformation which sets the content of the current node with whatever is under `:foo` in the current data.
+Transformations don't take as arguments the actual values but keys or paths into the model.
 
-`(content "p.foo" :foo)` is a transformation which sets the content of all descendants matching `p.foo` of the current node with whatever is under `:foo` in the current data.
+```clj
+=> ((static-template
+     (enliven.html.jsoup/parse "<div>")
+     "div" (content :sentence))
+     {:sentence "Hello world"})
+"<html><head></head><body><div>Hello world</div></body></html>"
+```
 
-FIXME
+Some transformations like `dup` introduces a new scope so that sub-transformation can only see
+the current item.
+
+```clj
+=> ((static-template
+     (enliven.html.jsoup/parse "<ul><li>")
+     "li" (dup :todos 
+            (content []))) ; [] is the empty path, so points to the whole value
+     {:todos ["Laundry" "Walk the dog"]})
+"<html><head></head><body><ul><li>Laundry</li><li>Walk the dog</li></ul></body></html>"
+```
+
+### It's fast
+
+Generating a 5x5 table. (pr-str just dumps the 5*5 vector):
+* pr-str (24.5µs), 
+* enliven (24.8µs), 
+* hiccup (44.8µs), 
+* enlive (130µs), 
+* laser (1280µs).
+
+https://gist.github.com/cgrand/8471718
+
+## Dev details
+
+### Processing model
+
+1. Nodes are selected
+2. For each selected node, associated transformations are grounded -- this is where the nodes are refined to avoid conflicts. The result is a set of rules.
+3. A hierarchical plan is created from the rules.
+4. The plan can either be executed as is or "compiled".
 
 ## License
 
-Copyright © 2013 FIXME
+Copyright © 2014 Christophe Grand
 
 Distributed under the Eclipse Public License, the same as Clojure.
