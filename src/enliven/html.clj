@@ -176,8 +176,7 @@
 #_(defn discard [selector]
    [[selector action/discard]])
 
-;; crude
-(defn template [node & transformations]
+(defn static-template [node & transformations]
   (let [plan (plan/plan (grounder/ground (apply at transformations) node))
         emitted (common/tight-fn-emit! (static/prerender node plan common/tight-fn-emit! (common/tight-fn-emit!)))]
     (fn
