@@ -34,7 +34,7 @@ This constraint is heavily mitigated by infinite-resolution selectors and transf
 Selectors don't stop at nodes as specified in the DOM. Any node can be subdivided at will!
 
 For example classes in a `class` attribute can be targeted independently. Each character of a text node can be transformed independently.
-You can append/conflict/prepend on an element without conflicts!
+You can append/content/prepend on an element without conflicts!
 
 However this happens under the hood, see: 
 
