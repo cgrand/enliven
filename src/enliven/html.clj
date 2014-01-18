@@ -19,7 +19,7 @@
 
 (seg/defsegment styles [style-attr styles]
   :fetch 
-    (let [vals (re-seq #"\s*([^:;]*)[:][\s]*([^;]+)"
+    (let [vals (re-seq #"([a-zA-Z0-9_-]+)[\s]*[:][\s]*(([^\";]*[\"][^\"]+[\"][^;]*)|([^';]*['][^']+[\'][^;]*)|([^'\";]*))"
                        (or style-attr ""))]
       (reduce (fn [m [_ k v]] (assoc m k (.trim v))) {} vals))
   :putback
