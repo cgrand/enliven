@@ -16,6 +16,17 @@
   :putback
     (some->> classes (keep (fn [[k v]] (when v k))) seq (str/join " ")))
 
+
+(seg/defsegment styles [style-attr styles]
+  :fetch 
+    (let [vals (re-seq #"\s*([^:;]*)[:][\s]*([^;]+)"
+                       (or style-attr ""))]
+      (reduce (fn [m [_ k v]] (assoc m k (.trim v))) {} vals))
+  :putback
+    (reduce (fn [s [k v]] (str s k ":" v ";")) "" styles ))
+
+
+
 (defn children [loc]
   (when (:tag (loc/node loc))
     (let [loc (loc/down loc :content)]
@@ -134,6 +145,17 @@
         (sel/chain element (sel/by-path [:attrs :class classes (name class)]))
         (action/replace path)))))
 
+(defn style
+  "Sets a style (on the selected elements) to the value at the corresponding path in the model."
+  {:arglists '([style path & style+paths])}
+  [& style+paths]
+  (grounder/composite-transformation
+    (for [[style path] (partition 2 style+paths)]
+      (grounder/simple-transformation
+        (sel/chain element (sel/by-path [:attrs :style styles (name style)]))
+        (action/replace path)))))
+
+
 (defn attr
   "Set an attribute (on the selected elements) to the value at the corresponding path in the model."
   {:arglists '([attr path & attr+paths])}
@@ -182,3 +204,9 @@
     (fn
       ([data] (common/render emitted data))
       ([data emit acc] (common/render emitted data emit acc)))))
+
+
+
+
+
+     
