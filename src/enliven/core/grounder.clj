@@ -6,9 +6,15 @@
     [enliven.core.paths :as path]))
 
 ;; a transformation is a function from loc to seq of rules
-(defn ground [transformation node]
-  (for [[path action] (transformation (loc/loc node))]
+(defn ground-loc [transformation loc]
+  (for [[path action] (transformation loc)]
     [path (action/update-paths action path/canonical)]))
+
+(defn ground
+  ([transformation node]
+    (ground transformation node nil))
+  ([transformation node segs]
+    (ground-loc transformation (reduce loc/down (loc/loc node) segs))))
 
 (defn simple-transformation [selector action]
   (fn [loc]
@@ -19,12 +25,14 @@
   (fn [loc]
     (keep (fn [loc]
             (let [seg (:seg loc)
-                  sloc (cond
-                         (seg/slice? seg) loc
-                         (number? seg) 
-                         (-> loc loc/up (loc/down (seg/slice seg (inc seg)))))]
-              (when sloc
-                [(loc/path sloc) (action/update-subs action ground (loc/node loc))])))
+                  [sloc segs] (cond
+                                (seg/slice? seg) [loc nil]
+                                (zero? seg) ; canonical paths can't have non-zero numeric segments
+                                [(loc/up loc) [0]]
+                                :else
+                                (throw (ex-info "Unexpected location for a splice"
+                                         {:loc loc :action action})))]
+              [(loc/path sloc) (action/update-subs action ground (loc/node sloc) segs)]))
       (selector loc))))
 
 (defn composite-transformation [transformations]

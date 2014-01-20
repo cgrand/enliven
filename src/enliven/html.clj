@@ -166,7 +166,7 @@
   Each copy is then transformed using the specified transformations.
   For these transformatons the model is restricted to the item."
   [path & transformations]
-  (grounder/simple-transformation
+  (grounder/splice-transformation
     list
     (action/dup path (apply at transformations))))
 
