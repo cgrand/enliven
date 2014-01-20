@@ -2,11 +2,13 @@
   (:require [enliven.core.actions :as action]
     [enliven.core.selectors :as sel]
     [enliven.core.locs :as loc]
-    [enliven.core.segments :as seg]))
+    [enliven.core.segments :as seg]
+    [enliven.core.paths :as path]))
 
 ;; a transformation is a function from loc to seq of rules
 (defn ground [transformation node]
-  (transformation (loc/loc node)))
+  (for [[path action] (transformation (loc/loc node))]
+    [path (action/update-paths action path/canonical)]))
 
 (defn simple-transformation [selector action]
   (fn [loc]
