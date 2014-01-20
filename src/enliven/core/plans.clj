@@ -71,28 +71,29 @@
             (assoc empty-plan :action planned-action)
             (unplan wip-plan)))))))
 
-(defmulti perform (fn [[op] stack node] op))
+(defmulti perform
+  "Performs the required action and returns the updated node."
+  (fn [[op] scopes node] op))
 
-(defn execute [node plan stack]
-  (prn node plan stack)
+(defn execute [node plan scopes]
   (if-let [action (:action plan)]
-    (perform action stack node)
+    (perform action scopes node)
     (reduce (fn [node [seg plan]]
-              (seg/update node seg execute plan stack))
+              (seg/update node seg execute plan scopes))
       node (concat (:misc plan) (rseq (:number plan)) (rseq (:range plan))))))
 
-(defmethod perform ::action/replace [[op n [path]] stack node]
-  (-> stack (nth n) (path/fetch-in path)))
+(defmethod perform ::action/replace [[op n [path]] scopes node]
+  (-> scopes (nth n) (path/fetch-in path)))
 
-(defmethod perform ::action/discard [[op n [path]] stack node]
+(defmethod perform ::action/discard [[op n [path]] scopes node]
   nil)
 
-(defmethod perform ::action/if [[op n [path] then else] stack node]
-  (if (-> stack (nth n) (path/fetch-in path))
-    (execute node then stack)
-    (execute node else stack)))
+(defmethod perform ::action/if [[op n [path] then else] scopes node]
+  (if (-> scopes (nth n) (path/fetch-in path))
+    (execute node then scopes)
+    (execute node else scopes)))
 
-(defmethod perform ::action/dup [[op n [path] sub] stack node]
+(defmethod perform ::action/dup [[op n [path] sub] scopes node]
   (map (fn [item]
-         (execute node sub (conj stack item)))
-    (-> stack (nth n) (path/fetch-in path))))
+         (execute node sub (conj scopes item)))
+    (-> scopes (nth n) (path/fetch-in path))))
