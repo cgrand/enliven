@@ -2,28 +2,43 @@
   (:require [enliven.core.segments :as seg]))
 
 ;; paths are made of segments
-;; segments are keywords or numbers or ranges [from to] (to exclusive)
-;; n IS not equivalent to [n (inc n)], the later denote a slice and not a node.
+
+(defn fetch-in [x path]
+  (reduce seg/fetch x path))
+
+(defn fetcher-in [path]
+  (reduce (fn
+            ([] identity)
+            ([f g] (comp g f)))
+    (map seg/fetcher path)))
 
 (defn canonical 
-  "Canonicalize a path: collapse unneeded range segments, add a singleton range for each direct access." 
-  [segs]
-  (loop [range-mode false segs segs path []]
+  "Canonicalize a path: simplify constant paths, collapse nested slice segments, add a parent slice for each indexed access.
+   And if it wasn't a path bu just a segment, hoist it into a path." 
+  [seg-or-segs]
+  (loop [range-mode false
+         segs (if (or (nil? seg-or-segs)
+                    (sequential? seg-or-segs))
+                seg-or-segs
+                (list seg-or-segs))
+         path []]
     (if-let [[seg & segs] (seq segs)]
-      (if range-mode
+      (cond
+        (seg/const? seg)
+        (let [v (fetch-in (seg/fetch nil seg) segs)]
+          [(seg/const v)])
+        (and (number? seg) (not= seg 0))
+        (recur range-mode (list* (seg/slice seg (inc seg)) 0 segs)
+          path)
+        range-mode
         (if (seg/slice? seg)
-          (let [[pfrom] (peek path)
+          (let [[pfrom] (seg/bounds (peek path))
                 [from to] (seg/bounds seg)]
             (recur true segs (-> path pop (conj (seg/slice (+ pfrom from) (+ pfrom to))))))
           (recur false segs (conj path seg)))
-        (recur (seg/slice? seg) segs
-          (if (number? seg)
-            (conj path (seg/slice seg (inc seg)) 0)
-            (conj path seg))))
+        :else
+        (recur (seg/slice? seg) segs (conj path seg)))
       path)))
-
-(defn path [path-or-seg]
-  ())
 
 (defn- broader-or-equal? [a b]
   (or (= a b)
@@ -52,15 +67,5 @@
                        [(seg/slice (- fb fa) (- tb fa))]))
       (subvec path n))))
 
-(defn fetch-in [x path]
-  (if (sequential? path)
-    (reduce seg/fetch x path)
-    (seg/fetch x path)))
-
-(defn fetcher-in [path]
-  (if (sequential? path)
-    (reduce (fn
-              ([] identity)
-              ([f g] (comp g f)))
-      (map seg/fetcher path))
-    (seg/fetcher path)))
+(defn const? [path]
+  (-> path first seg/const?))

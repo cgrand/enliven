@@ -89,6 +89,18 @@
           n (count v)]
       [(bound 0 from n) (bound 0 to n)])))
 
+(defrecord Constant [v]
+  Segment
+  (-fetch [seg _] v)
+  (-expr [seg] (list `const v))
+  SegmentEx
+  (fetcher [seg]
+    (constantly v)))
+
+(defn const [v] (Constant. v))
+
+(defn const? [seg] (instance? Constant seg))
+
 (defmacro defsegment [name [value-arg subvalue-arg & args] & methods]
   (let [fqname (symbol (clojure.core/name (ns-name *ns*)) 
                  (clojure.core/name name))
