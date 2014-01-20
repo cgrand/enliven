@@ -37,7 +37,10 @@
     (static/prerender-unknown tag plan prerender-tag emit acc)
     (emit acc (name tag))))
 
-(defmacro ^:private inline-emit [emit acc & coll]
+(defmacro ^:private inline-emit
+  "Threads the emit fn and its accumulator through each items of coll.
+  When the item is unquoted, emit and acc are apssed as the last two arguments."
+  [emit acc & coll]
   (let [emitsym (gensym 'emit)]
     `(let [~emitsym ~emit]
        ~(reduce (fn [acc x]
