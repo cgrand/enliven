@@ -28,5 +28,9 @@
    (testing "prepend tranform"
     (let [trans (static-template node2 :div (prepend :success))]
       (is (= (page-wrap "<div>test<span>t</span></div>")
-             (trans {:success "test"}))))))
+             (trans {:success "test"})))))
+   (testing "dup tranform"
+    (let [trans (static-template node :div (h/dup :items (content [])))]
+      (is (= (page-wrap "<div>0</div><div>1</div><div>2</div>")
+             (trans {:items (map str (range 3))}))))))
 
