@@ -3,6 +3,7 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :repositories [["phloc.com" "http://repo.phloc.com/maven2"]]
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [	org.apache.xmlgraphics/batik-css "1.7"]
+                 [com.phloc/phloc-css "3.7.0"]
                  [org.jsoup/jsoup "1.7.2"]])

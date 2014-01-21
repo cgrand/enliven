@@ -3,8 +3,36 @@
   (:require 
    [enliven.html :as h :refer [static-template content class
                                append prepend]]
-   [enliven.html.jsoup :as jsoup]))
+   [enliven.html.jsoup :as jsoup]
+   [enliven.core.locs :as loc]))
 
+
+(deftest selector-tests
+  (are [sel e] (not-empty ((h/css sel) (loc/loc e)))
+    "div" {:tag :div}
+    "[id]" {:tag :div :attrs {:id "foo"}}
+    "[id=foo]" {:tag :div :attrs {:id "foo"}}
+    "[class~=foo]" {:tag :div :attrs {:class "foo bar baz"}}
+    "[class~=bar]" {:tag :div :attrs {:class "foo bar baz"}}
+    "[class~=baz]" {:tag :div :attrs {:class "foo bar baz"}}
+    "[lang|=fr]" {:tag :div :attrs {:lang "fr"}}
+    "[lang|=fr]" {:tag :div :attrs {:lang "fr-be"}}
+    "[class^=fo]" {:tag :div :attrs {:class "foo bar baz"}}
+    "[class*=ba]" {:tag :div :attrs {:class "foo bar baz"}}
+    "[class$=az]" {:tag :div :attrs {:class "foo bar baz"}}
+    "div#id.foo" {:tag :div :attrs {:class "foo bar baz" :id "id"}}
+    "div #id.foo" {:tag :div :content [{:tag :span :attrs {:class "foo bar baz" :id "id"}}]})
+  (are [sel e] (empty? ((h/css sel) (loc/loc e)))
+    "span" {:tag :div}
+    "[id]" {:tag :div :attrs {:class "foo"}}
+    "[id=bar]" {:tag :div :attrs {:id "foo"}}
+    "[class~=fizz]" {:tag :div :attrs {:class "foo bar baz"}}
+    "[lang|=fr]" {:tag :div :attrs {:lang "de"}}
+    "[lang|=fr]" {:tag :div :attrs {:lang "be-fr"}}
+    "[class^=oo]" {:tag :div :attrs {:class "foo bar baz"}}
+    "[class*=boom]" {:tag :div :attrs {:class "foo bar baz"}}
+    "[class$=ba]" {:tag :div :attrs {:class "foo bar baz"}}
+    "span#id.foo" {:tag :div :attrs {:class "foo bar baz" :id "id"}}))
 
 (def node (jsoup/parse "<div>"))
 (def node2 (jsoup/parse "<div><span>t</span></div>"))

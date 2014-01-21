@@ -36,6 +36,16 @@
 (defn descendants-and-self [loc]
   (cons loc (descendants loc)))
 
+(defn indirect-adjacent-combinator
+  "http://www.w3.org/TR/2001/CR-css3-selectors-20011113/#adjacent-i-combinators"
+  [loc]
+  (sel/chain (sel/rights loc) element))
+
+(defn direct-adjacent-combinator
+  "http://www.w3.org/TR/2001/CR-css3-selectors-20011113/#adjacent-d-combinators"
+  [loc]
+  (some-> loc indirect-adjacent-combinator first list))
+
 (defn loose-chain
   ([] list)
   ([& sels] (reduce sel/chain (interpose descendants sels))))
@@ -43,10 +53,29 @@
 (defprotocol ^:private ToSelector
   (as-sel [x]))
 
+(def ^:private css-combinators
+  {com.phloc.css.decl.ECSSSelectorCombinator/BLANK descendants
+   com.phloc.css.decl.ECSSSelectorCombinator/TILDE indirect-adjacent-combinator
+   com.phloc.css.decl.ECSSSelectorCombinator/PLUS direct-adjacent-combinator
+   com.phloc.css.decl.ECSSSelectorCombinator/GREATER list})
+
+(defn- css-sel [^com.phloc.css.decl.CSSSelector sel]
+  (reduce sel/chain
+    list (map #(or (css-combinators %) (as-sel %)) (.getAllMembers sel))))
+
+(defn- css-members-sel [members]
+  (->> members (map css-sel) (apply sel/union)))
+
 (defn css [^String s]
-  (-> (org.apache.batik.css.parser.Parser.)
-    (.parseSelectors s)
-    as-sel))
+  (-> s
+    (str " {}")
+    (com.phloc.css.reader.CSSReader/readFromString
+      "utf-8"
+      com.phloc.css.ECSSVersion/CSS30)
+    .getAllStyleRules
+    ^com.phloc.css.decl.CSSStyleRule first
+    .getAllSelectors
+    css-members-sel))
 
 (defn sel
   ([spec]
@@ -72,53 +101,55 @@
           (keyword? spec) (css (name spec))
           :else spec)))))
 
-(defn- tag-is? [tag sel]
-  (or (nil? sel) (= tag sel)))
+(defn tag-selector [tag]
+  (sel/node-pred #(some->> % :tag (= tag))))
+
+(defn- space-separated-values [s]
+  (re-seq #"\S+" s))
+
+(defn class-selector [class]
+  (sel/node-pred #(some->> % :attrs :class space-separated-values (some #{class}))))
+
+(defn id-selector [id]
+  (sel/node-pred #(some-> % :attrs :id str/trim (= id))))
 
 (extend-protocol ToSelector
-  org.w3c.css.sac.SelectorList
-  (as-sel [sels]
-    (let [sels (map #(as-sel (.item sels %)) (range (.getLength sels)))]
-      (fn [loc]
-        (mapcat #(% loc) sels))))
-  org.w3c.css.sac.ElementSelector
+  com.phloc.css.decl.CSSSelectorSimpleMember
   (as-sel [sel]
-    (fn [loc]
-      (when (some-> (loc/node loc) :tag name (tag-is? (.getLocalName sel)))
-        (list loc))))
-  org.w3c.css.sac.DescendantSelector
+    (let [s (.getValue sel)]
+      (case (first s)
+        \# (id-selector (subs s 1))
+        \. (class-selector (subs s 1))
+        \: (throw (ex-info "unsupported pseudo-class" {:pseudo-class s}))
+        (tag-selector (keyword s)))))
+  com.phloc.css.decl.CSSSelectorAttribute
   (as-sel [sel]
-    (sel/chain (as-sel (.getAncestorSelector sel))
-      (case (.getSelectorType sel)
-        #=(eval org.w3c.css.sac.Selector/SAC_CHILD_SELECTOR)
-        children
-        #=(eval org.w3c.css.sac.Selector/SAC_DESCENDANT_SELECTOR)
-        descendants)
-      (as-sel (.getSimpleSelector sel))))
-  org.w3c.css.sac.ConditionalSelector
+    (let [attr (keyword (.getAttrName sel))
+          value (.getAttrValue sel)
+          op (.getOperator sel)
+          attr-pred
+          (condp = op
+            nil identity
+            com.phloc.css.decl.ECSSAttributeOperator/EQUALS
+            #(= % value)
+          com.phloc.css.decl.ECSSAttributeOperator/INCLUDES
+          #(some->> % space-separated-values (some #{value}))
+          com.phloc.css.decl.ECSSAttributeOperator/DASHMATCH
+          (let [value- (str value "-")]
+            (fn [^String v] (or (= v value) (.startsWith v value-))))
+          com.phloc.css.decl.ECSSAttributeOperator/BEGINMATCH
+          #(.startsWith ^String % value)
+          com.phloc.css.decl.ECSSAttributeOperator/CONTAINSMATCH
+          #(>= (.indexOf ^String % value) 0)
+          com.phloc.css.decl.ECSSAttributeOperator/ENDMATCH
+          #(.endsWith ^String % value)
+          (throw (ex-info "Unexpected attribute operator" {:op op})))]
+      (sel/node-pred
+        #(some-> % :attrs attr attr-pred))))
+  #_#_com.phloc.css.decl.CSSSelectorMemberNot
   (as-sel [sel]
-    (sel/chain (as-sel (.getSimpleSelector sel)) (as-sel (.getCondition sel))))
-  org.w3c.css.sac.AttributeCondition
-  (as-sel [cond]
-    (let [pred (case (long (.getConditionType cond))
-                 #=(eval org.w3c.css.sac.Condition/SAC_ATTRIBUTE_CONDITION)
-                 (let [k (keyword (.getLocalName cond))]
-                   (if (.getSpecified cond)
-                     (let [v (.getValue cond)]
-                       #(some-> % loc/node :attrs (get k) (= v)))
-                     #(some-> % loc/node :attrs (get k))))
-                 #=(eval org.w3c.css.sac.Condition/SAC_CLASS_CONDITION)
-                 #(when-let [classes (some->> % loc/node :attrs :class (re-seq #"\S+") set)]
-                    (contains? classes (.getValue cond)))
-                 #_#_#=(eval org.w3c.css.sac.Condition/SAC_PSEUDO_CLASS_CONDITION)
-                   (case (.getValue cond)
-                     "first-of-type")
-                 #=(eval org.w3c.css.sac.Condition/SAC_ID_CONDITION)
-                 #(some-> % loc/node :attrs :id (= (.getValue cond))))]
-      (fn [loc] (when (pred loc) (list loc)))))
-  #_org.w3c.css.sac.CombinatorCondition
-  #_org.w3c.css.sac.NegativeCondition)
-
+    (let [nested-selector (-> sel .getNestedMembers css-members-sel)]
+      (fn [loc]))))
 
 (defn at [& selector+transformations]
   (grounder/at* selector+transformations sel))
