@@ -28,14 +28,12 @@
             :path path 
             :sub-action sub-action})))
 
-(def ^:private nest
-  (letfn [(nest [action]
-            (-> action (assoc 1 (inc (nth action 1)))
-              (action/update-subs nest-rules)))
-          (nest-rules [rules]
+(defn- nest [action]
+  (letfn [(nest-rules [rules]
             (set (for [[path action] rules] 
                    [path (nest action)])))]
-    nest))
+    (-> action (assoc 1 (inc (nth action 1)))
+      (action/update-subs nest-rules))))
 
 (defmethod mash ::action/dup [[op n args sub-plan] path sub-action]
   [op n args (plan-in sub-plan path (nest sub-action))])
