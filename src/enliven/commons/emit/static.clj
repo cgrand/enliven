@@ -116,14 +116,13 @@
       (nil? plan) (emit-consts acc nodes)
       (:action plan) (prerender-unknown nodes plan prerender emit acc)
       ; there should be a check that we only have known segments
-      :else (let [[acc nodes-left]
+      :else (let [[acc prev-to]
                   (reduce 
-                    (fn [[acc nodes-left] [x subplan]]
+                    (fn [[acc prev-to] [x subplan]]
                       (let [[from to] (seg/bounds x nodes)
-                            subnode (seg/fetch nodes-left x)]
-                        [(as-> (emit-consts acc (subvec nodes-left 0 from)) acc
+                            subnode (seg/fetch nodes x)]
+                        [(as-> (emit-consts acc (subvec nodes prev-to from)) acc
                            (prerender subnode subplan emit acc))
-                         (subvec nodes-left to)])) 
-                    [acc (vec nodes)] (concat (:number plan)
-                                        (:range plan)))]
-              (emit-consts acc nodes-left)))))
+                         to]))
+                    [acc 0] (concat (:number plan) (:range plan)))]
+              (emit-consts acc (subvec nodes prev-to))))))
