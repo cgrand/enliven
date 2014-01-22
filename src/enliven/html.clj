@@ -209,6 +209,8 @@
 
 (defn static-template [node & transformations]
   (let [plan (plan/plan (grounder/ground (apply at transformations) node))
+        [node plan] (plan/const-execute node plan (list ::plan/dynamic))
+        plan (plan/canonical plan)
         emitted (common/tight-fn-emit! (static/prerender node plan common/tight-fn-emit! (common/tight-fn-emit!)))]
     (fn
       ([data] (common/render emitted data))

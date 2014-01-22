@@ -8,7 +8,7 @@
 ;; a transformation is a function from loc to seq of rules
 (defn ground-loc [transformation loc]
   (for [[path action] (transformation loc)]
-    [path (action/update-paths action path/canonical)]))
+    [(path/canonical path) (action/update-paths action path/canonical)]))
 
 (defn ground
   ([transformation node]
@@ -19,7 +19,7 @@
 (defn simple-transformation [selector action]
   (fn [loc]
     (for [loc (selector loc)]
-      [(loc/path loc) (action/update-subs action ground (loc/node loc))])))
+      [(path/canonical (loc/path loc)) (action/update-subs action ground (loc/node loc))])))
 
 (defn splice-transformation [selector action]
   (fn [loc]
@@ -32,7 +32,7 @@
                                 :else
                                 (throw (ex-info "Unexpected location for a splice"
                                          {:loc loc :action action})))]
-              [(loc/path sloc) (action/update-subs action ground (loc/node sloc) segs)]))
+              [(path/canonical (loc/path sloc)) (action/update-subs action ground (loc/node sloc) segs)]))
       (selector loc))))
 
 (defn composite-transformation [transformations]

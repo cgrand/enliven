@@ -4,7 +4,8 @@
    [enliven.html :as h :refer [static-template content class
                                append prepend]]
    [enliven.html.jsoup :as jsoup]
-   [enliven.core.locs :as loc]))
+   [enliven.core.locs :as loc]
+   [enliven.core.segments :as seg]))
 
 
 (deftest selector-tests
@@ -62,3 +63,14 @@
       (is (= (page-wrap "<div>0</div><div>1</div><div>2</div>")
              (trans {:items (map str (range 3))}))))))
 
+(deftest const-analysis-tests
+  (let [t (static-template
+            (enliven.html.jsoup/parse "<ul><li><span class=a></span><span class=b></span>")
+            :li (h/dup (seg/const ["Hallo" ["Bonjour"]])
+                  :span.a (content []))
+            :span.b (content :msg))]
+    (is (= (page-wrap "<ul><li><span class='a'>Hallo</span><span class='b'>x</span></li><li><span class='a'>Bonjour</span><span class='b'>x</span></li></ul>")
+          (t {:msg "x"})))
+    (is (= ["x"] (distinct 
+                    (keep (fn [[x y]] (when-not (identical? x y) x)) 
+                      (map vector (t {:msg "x"} conj []) (t {:msg "y"} conj []))))))))
