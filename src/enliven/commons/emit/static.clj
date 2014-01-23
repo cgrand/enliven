@@ -70,27 +70,27 @@
                     (x (compose-encoding emit' enc) acc stack))
                   (enc x))))))
 
-(defmulti perform (fn [[op] stack render emit' acc] op))
+(defmulti perform (fn [action stack render emit' acc] (:op action)))
 
-(defmethod perform ::action/replace [[op n [f]] stack render emit' acc]
+(defmethod perform ::action/replace [{n :scope-idx [f] :args} stack render emit' acc]
   (render (-> stack (nth n) f) nil emit' acc))
 
-(defmethod perform ::action/if [[op n [f] then else] stack render emit' acc]
+(defmethod perform ::action/if [{n :scope-idx [f] :args [then else] :subs} stack render emit' acc]
   (if (-> stack (nth n) f)
     (render* then stack emit' acc)
     (render* else stack emit' acc)))
 
-(defmethod perform ::action/dup [[op n [f] sub] stack render emit' acc]
+(defmethod perform ::action/dup [{n :scope-idx [f] :args [sub] :subs} stack render emit' acc]
   (reduce (fn [acc item]
             (render* sub (conj stack item) emit' acc))
     acc (-> stack (nth n) f)))
 
 (defn prerender-action [node action prerender emit acc]
   (let [action (-> action 
-                 (action/update-subs 
+                 (action/update :subs
                    (fn [subplan] 
                      (emit (prerender node subplan emit (emit)))))
-                 (action/update-paths path/fetcher-in))]
+                 (action/update :args path/fetcher-in))]
     (emit acc (fn [emit' acc stack]
                 (perform action stack prerender emit' acc)))))
 

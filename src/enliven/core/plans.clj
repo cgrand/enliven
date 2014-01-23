@@ -27,14 +27,14 @@
       (map (fn [[path action]] [(path/canonical path) action]))
       (sort-by (comp count first))
       (reduce (fn [plan [path action]] (plan-in plan path action)) empty-plan))
-    (fn [action] (action/update-subs action plan))))
+    (fn [action] (action/update action :subs plan))))
 
-(defmulti ^:private -mash (fn [[op :as action] path sub-action]
-                            op))
+(defmulti ^:private -mash (fn [action path sub-action]
+                            (:op action)))
 
 (defn- mash [action path sub-action]
-  (if (and (empty? path) (= action sub-action))
-    action ; TODO false negatives
+  (if (and (empty? path) (= action sub-action)) ; TODO false negatives
+    action
     (-mash action path sub-action)))
 
 (defmethod -mash :default [action path sub-action]
@@ -47,13 +47,13 @@
   (letfn [(nest-rules [rules]
             (set (for [[path action] rules] 
                    [path (nest action)])))]
-    (-> action (assoc 1 (inc (nth action 1)))
-      (action/update-subs nest-rules))))
+    (-> action (assoc :scope-idx (inc (:scope-idx action)))
+      (action/update :subs nest-rules))))
 
 (defn unplan [plan]
   (letfn [(unplan' [plan]
             (if-let [planned-action (:action plan)]
-              (let [action (action/update-subs planned-action unplan)]
+              (let [action (action/update planned-action :subs unplan)]
                 [[() action]])
               (for [plans-by-seg (vals plan)
                     [seg sub-plan] plans-by-seg
@@ -62,11 +62,11 @@
     (for [[path action] (unplan' plan)]
       [(path/canonical path) action])))
 
-(defmethod -mash ::action/dup [[op n args sub-rules :as action] path sub-action]
+(defmethod -mash ::action/dup [action path sub-action]
   (cond
-    (seq path) [op n args (conj sub-rules [path (nest sub-action)])]
-    (= [op n args] (take 3 sub-action))
-    [op n args (into (set sub-rules) (nth sub-action 3))]
+    (seq path) (action/update action :subs conj [path (nest sub-action)])
+    (= (dissoc action :subs) (dissoc sub-action :subs))
+    (action/update action :subs into (first (:subs sub-action)))
     :else (throw (ex-info "Conflicting actions" {:actions [action sub-action]}))))
 
 (defn canonical [a-plan]
@@ -74,7 +74,7 @@
 
 (defn- plan-in [wip-plan path action]
   {:pre [(or (nil? path) (sequential? path))
-         (vector? action)]}
+         (map? action)]}
   (let [wip-plan (or wip-plan empty-plan)]
     (if-let [other-action (:action wip-plan)]
       (assoc wip-plan
@@ -84,9 +84,11 @@
           plan-in segs action)
         (assoc wip-plan :action action)))))
 
+(defn perform-dispatch-fn [action scopes node] (:op action))
+
 (defmulti perform
   "Performs the required action and returns the updated node."
-  (fn [[op] scopes node] op))
+  perform-dispatch-fn)
 
 (defn execute [node plan scopes]
   (if-let [action (:action plan)]
@@ -114,7 +116,7 @@
   (and plan (not= plan empty-plan)))
 
 (defmulti const-perform
-  (fn [[op] scopes node] op))
+  perform-dispatch-fn)
 
 (defn const-execute [node plan scopes]
   (if-let [action (:action plan)]
@@ -170,43 +172,43 @@
           (let [~name (path/fetch-in scope# path#)]
             ~then))))))
 
-(defmethod const-perform ::action/replace [[op n [path] :as action] scopes node]
+(defmethod const-perform ::action/replace [{n :scope-idx [path] :args :as action} scopes node]
   (if-const-let [v scopes n path]
     [v empty-plan]
     [node (assoc empty-plan :action action)]))
 
-(defmethod perform ::action/replace [[op n [path]] scopes node]
+(defmethod perform ::action/replace [{n :scope-idx [path] :args} scopes node]
   (-> scopes (nth n) (path/fetch-in path)))
 
-(defmethod perform ::action/if [[op n [path] then else] scopes node]
+(defmethod perform ::action/if [{n :scope-idx [path] :args [then else] :subs} scopes node]
   (if (-> scopes (nth n) (path/fetch-in path))
     (execute node then scopes)
     (execute node else scopes)))
 
-(defmethod perform ::action/dup [[op n [path] sub] scopes node]
+(defmethod perform ::action/dup [{n :scope-idx [path] :args [sub] :subs} scopes node]
   (mapcat (fn [item]
             (spliceable (execute node sub (conj scopes item))))
     (-> scopes (nth n) (path/fetch-in path))))
 
-(defmulti ^:private propagate-drop-scope (fn [[op] n] op))
+(defmulti ^:private propagate-drop-scope :op)
 
 (defn- drop-scope
   ([plan] (drop-scope plan 0))
   ([plan n]
-    (map-actions plan (fn [[op m :as action]]
+    (map-actions plan (fn [{m :scope-idx :as action}]
                         (propagate-drop-scope
                           (if (> m n)
-                            (assoc action 1 (dec m))
+                            (assoc action :scope-idx (dec m))
                             action)
                           n)))))
 
 (defmethod propagate-drop-scope :default [action n]
-  (action/update-subs action drop-scope action n))
+  (action/update action :subs drop-scope action n))
 
 (defmethod propagate-drop-scope ::action/dup [action n]
-  (action/update-subs action drop-scope action (inc n)))
+  (action/update action :subs drop-scope action (inc n)))
 
-(defmethod const-perform ::action/dup [[op n [path] sub :as action] scopes node]
+(defmethod const-perform ::action/dup [{n :scope-idx [path] :args [sub] :subs :as action} scopes node]
   (if-const-let [coll scopes n path]
     (let [[nodes plans-by-seg]
           (reduce
@@ -222,6 +224,13 @@
                    plan-by-ranges)]))
             [[] (sorted-map)] coll)]
       [nodes (assoc empty-plan :range plans-by-seg)])
+    [node (assoc empty-plan
+            ; subs should embed their node so that const-execute could be propagated
+            :action action)]))
+
+(defmethod const-perform ::action/if [{n :scope-idx [path] :args [then else] :subs :as action} scopes node]
+  (if-const-let [test scopes n path]
+    (const-execute node (if test then else) scopes)
     [node (assoc empty-plan
             ; subs should embed their node so that const-execute could be propagated
             :action action)]))

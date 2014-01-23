@@ -1,20 +1,9 @@
 (ns enliven.core.actions)
 
-(def discard [::discard 0 nil])
-(defn replace [path] [::replace 0 [path]])
-(defn dup [path sub]  [::dup 0 [path] sub])
+(defn replace [path] {:op ::replace :scope-idx 0 :args [path]})
+(defn dup [path sub]  {:op ::dup :scope-idx 0 :args [path] :subs [sub]})
+(defn if' [path then-sub else-sub]
+  {:op ::dup :scope-idx 0 :args [path] :subs [then-sub else-sub]})
 
-(defmulti update-subs (fn [[op] f & args] op))
-
-(defmethod update-subs :default [action f & args] action)
-
-(defmethod update-subs ::if [action f & args] 
-  (assoc action
-    3 (apply f (nth action 3) args)
-    4 (apply f (nth action 4) args)))
-
-(defmethod update-subs ::dup [action f & args] 
-  (assoc action 3 (apply f (nth action 3) args)))
-
-(defn update-paths [action f & args]
-  (assoc action 2 (mapv #(apply f % args) (nth action 2))))
+(defn update [action key f & args]
+  (assoc action key (mapv #(apply f % args) (get action key))))
