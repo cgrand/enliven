@@ -19,10 +19,15 @@
               (plan-in wip-plan path action))
       wip-plan rules)))
 
-(defmulti ^:private mash (fn [[op :as planned-action] path sub-action]
-                           op))
+(defmulti ^:private -mash (fn [[op :as planned-action] path sub-action]
+                            op))
 
-(defmethod mash :default [planned-action path sub-action]
+(defn- mash [planned-action path sub-action]
+  (if (and (empty? path) (= planned-action (action/update-subs sub-action plan)))
+    planned-action
+    (-mash planned-action path sub-action)))
+
+(defmethod -mash :default [planned-action path sub-action]
   (throw (ex-info "Conflicting rules" 
            {:planned-action planned-action
             :path path 
@@ -35,10 +40,7 @@
     (-> action (assoc 1 (inc (nth action 1)))
       (action/update-subs nest-rules))))
 
-(defmethod mash ::action/dup [[op n args sub-plan] path sub-action]
-  [op n args (plan-in sub-plan path (nest sub-action))])
-
-(defmethod mash ::action/discard
+(defmethod -mash ::action/discard
   [planned-action _]
   planned-action)
 
@@ -54,26 +56,28 @@
     (for [[path action] (unplan' plan)]
       [(path/canonical path) action])))
 
+(defmethod -mash ::action/dup [[op n args sub-plan :as action] path sub-action]
+  (cond
+    (seq path) [op n args (plan-in sub-plan path (nest sub-action))]
+    (= [op n args] (take 3 sub-action))
+    [op n args (plan (into (set (unplan sub-plan)) (nth sub-action 3)))]
+    :else (throw (ex-info "Conflicting actions" {:actions [action sub-action]}))))
+
 (defn canonical [a-plan]
   (-> a-plan unplan plan))
 
 (defn- plan-in [wip-plan path action]
   {:pre [(or (nil? path) (sequential? path))]}
   (let [wip-plan (or wip-plan empty-plan)]
-    (if-let [[seg & segs] (seq path)]
-      (if-let [planned-action (:action wip-plan)]
-        (assoc empty-plan
-          :action (mash planned-action path action))
-        (update-in wip-plan [(seg/seg-class seg) seg]
-          plan-in segs action))
-      (let [planned-action (action/update-subs action plan)]
-        (if-let [other-action (:action wip-plan)]
-          (if (= other-action planned-action)
-            wip-plan
-            (throw (ex-info "Conflicting actions" {:actions [other-action planned-action]})))
-          (plan
-            (assoc empty-plan :action planned-action)
-            (unplan wip-plan)))))))
+    (if-let [planned-action (:action wip-plan)]
+      (assoc empty-plan
+        :action (mash planned-action path action))
+      (if-let [[seg & segs] (seq path)]
+       (update-in wip-plan [(seg/seg-class seg) seg]
+         plan-in segs action)
+       (plan
+         (assoc empty-plan :action (action/update-subs action plan))
+         (unplan wip-plan))))))
 
 (defmulti perform
   "Performs the required action and returns the updated node."

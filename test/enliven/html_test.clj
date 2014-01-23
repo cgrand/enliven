@@ -37,6 +37,7 @@
 
 (def node (jsoup/parse "<div>"))
 (def node2 (jsoup/parse "<div><span>t</span></div>"))
+(def node3 (jsoup/parse "<ul><li><span class=a></span><span class=b></span>"))
 
 (defn page-wrap [node-str]
   (str "<html><head></head><body>" node-str "</body></html>"))
@@ -64,8 +65,7 @@
              (trans {:items (map str (range 3))}))))))
 
 (deftest const-analysis-tests
-  (let [t (static-template
-            (enliven.html.jsoup/parse "<ul><li><span class=a></span><span class=b></span>")
+  (let [t (static-template node3
             :li (h/dup (seg/const ["Hallo" ["Bonjour"]])
                   :span.a (content []))
             :span.b (content :msg))]
@@ -74,3 +74,26 @@
     (is (= ["x"] (distinct 
                     (keep (fn [[x y]] (when-not (identical? x y) x)) 
                       (map vector (t {:msg "x"} conj []) (t {:msg "y"} conj []))))))))
+
+(deftest idempotency-tests
+  (let [t (static-template node3
+            :li (h/dup []
+                  :span.a (content []))
+            :li (h/dup []
+                  :span.a (content [])))]
+    (is (= (page-wrap "<ul><li><span class='a'>1</span><span class='b'></span></li><li><span class='a'>2</span><span class='b'></span></li></ul>")
+          (t (map str (range 1 3))))))
+  (let [t (static-template node3
+            :li (h/dup []
+                  :span (content []))
+            :li (h/dup []
+                  :span.a (content [])))]
+    (is (= (page-wrap "<ul><li><span class='a'>1</span><span class='b'>1</span></li><li><span class='a'>2</span><span class='b'>2</span></li></ul>")
+          (t (map str (range 1 3))))))
+  (let [t (static-template node3
+            :li (h/dup []
+                  :span.b (content []))
+            :li (h/dup []
+                  :span.a (content [])))]
+    (is (= (page-wrap "<ul><li><span class='a'>1</span><span class='b'>1</span></li><li><span class='a'>2</span><span class='b'>2</span></li></ul>")
+          (t (map str (range 1 3)))))))
