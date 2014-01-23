@@ -1,83 +1,151 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
-    <meta charset='utf-8'>
+    <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <title>Enliven by cgrand</title>
 
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-
-    <title>Enliven by cgrand</title>
   </head>
-
   <body>
-    <header>
-      <div class="inner">
+    <div class="wrapper">
+      <header>
         <h1>Enliven</h1>
-        <h2>Enlive next: faster, better, broader</h2>
-        <a href="https://github.com/cgrand/enliven" class="button"><small>View project on</small>GitHub</a>
-      </div>
-    </header>
+        <p>Enlive next: faster, better, broader</p>
 
-    <div id="content-wrapper">
-      <div class="inner clearfix">
-        <section id="main-content">
-          <h3>
-<a name="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
+        <p class="view"><a href="https://github.com/cgrand/enliven">View the Project on GitHub <small>cgrand/enliven</small></a></p>
 
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
+        <ul>
+          <li><a href="https://github.com/cgrand/enliven/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/cgrand/enliven/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/cgrand/enliven">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a name="enliven-" class="anchor" href="#enliven-"><span class="octicon octicon-link"></span></a>Enliven <a href="https://travis-ci.org/cgrand/enliven"><img src="https://travis-ci.org/cgrand/enliven.png?branch=master" alt="Build Status"></a>
+</h1>
 
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+<p>Enliven: a (not yet) continuous templating system.</p>
 
-<h3>
-<a name="designer-templates" class="anchor" href="#designer-templates"><span class="octicon octicon-link"></span></a>Designer Templates</h3>
+<p><em>WARNING</em> very wet paint</p>
 
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+<h2>
+<a name="enliven-is-the-successor-to-enlive" class="anchor" href="#enliven-is-the-successor-to-enlive"><span class="octicon octicon-link"></span></a>Enliven is the successor to Enlive</h2>
 
-<h3>
-<a name="rather-drive-stick" class="anchor" href="#rather-drive-stick"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+<p>Even dictionaries say so:</p>
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+<blockquote>
+<p>Enlive: To Enliven (Obs.)</p>
+</blockquote>
 
-<h3>
-<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
-
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+<p>Enliven also stands for Enlive N(ext).</p>
 
 <h3>
-<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+<a name="not-tied-to-html" class="anchor" href="#not-tied-to-html"><span class="octicon octicon-link"></span></a>Not tied to HTML</h3>
 
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
-        </section>
+<p>Currently Enliven can template plain text (<code>enliven.text</code>) and html (<code>enliven.html</code>).
+The HTML "domain" is even composite since it uses the text "domain" to template text nodes.</p>
 
-        <aside id="sidebar">
-          <a href="https://github.com/cgrand/enliven/zipball/master" class="button">
-            <small>Download</small>
-            .zip file
-          </a>
-          <a href="https://github.com/cgrand/enliven/tarball/master" class="button">
-            <small>Download</small>
-            .tar.gz file
-          </a>
+<h3>
+<a name="simpler-selectors" class="anchor" href="#simpler-selectors"><span class="octicon octicon-link"></span></a>Simpler selectors</h3>
 
-          <p class="repo-owner"><a href="https://github.com/cgrand/enliven"></a> is maintained by <a href="https://github.com/cgrand">cgrand</a>.</p>
+<p>Selectors are now functions from loc to locs. Most domains should expose a <code>sel</code> function to coerce
+a domain specific selector (eg a CSS-selector in string or a regex) to a selector fn.</p>
 
-          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
-        </aside>
-      </div>
+<h3>
+<a name="parallel-execution-of-transformations" class="anchor" href="#parallel-execution-of-transformations"><span class="octicon octicon-link"></span></a>Parallel execution of transformations</h3>
+
+<p>All transformations occur at once for maximum declarativeness (and it enables good performance). It follows that two transformations can't work on the same node
+or on a node and one of its ancestors.</p>
+
+<p>This constraint is heavily mitigated by infinite-resolution selectors and transformation-refined selectors.</p>
+
+<h3>
+<a name="infinite-resolution-selectors" class="anchor" href="#infinite-resolution-selectors"><span class="octicon octicon-link"></span></a>Infinite-resolution selectors</h3>
+
+<p>Selectors don't stop at nodes as specified in the DOM. Any node can be subdivided at will!</p>
+
+<p>For example classes in a <code>class</code> attribute can be targeted independently. Each character of a text node can be transformed independently.
+You can append/content/prepend on an element without conflicts!</p>
+
+<p>However this happens under the hood, see: </p>
+
+<div class="highlight highlight-clj"><pre><span class="p">(</span><span class="nf">at</span> 
+  <span class="s">"div"</span> <span class="p">(</span><span class="nb">class </span><span class="s">"important"</span> <span class="ss">:important</span><span class="p">)</span>
+  <span class="s">"div"</span> <span class="p">(</span><span class="nb">class </span><span class="s">"footnote"</span> <span class="ss">:foot-note</span><span class="p">))</span>
+</pre></div>
+
+<p>Those two transformations won't conflict because they refine their selector.</p>
+
+<h3>
+<a name="point-free" class="anchor" href="#point-free"><span class="octicon octicon-link"></span></a>Point-free</h3>
+
+<p>Templates take a single argument which is the data model to render.</p>
+
+<p>Transformations don't take as arguments the actual values but keys or paths into the model.</p>
+
+<div class="highlight highlight-clj"><pre><span class="nv">=&gt;</span> <span class="p">((</span><span class="nf">static-template</span>
+     <span class="p">(</span><span class="nf">enliven.html.jsoup/parse</span> <span class="s">"&lt;div&gt;"</span><span class="p">)</span>
+     <span class="s">"div"</span> <span class="p">(</span><span class="nf">content</span> <span class="ss">:sentence</span><span class="p">))</span>
+     <span class="p">{</span><span class="ss">:sentence</span> <span class="s">"Hello world"</span><span class="p">})</span>
+<span class="s">"&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;div&gt;Hello world&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;"</span>
+</pre></div>
+
+<p>Some transformations like <code>dup</code> introduces a new scope so that sub-transformation can only see
+the current item.</p>
+
+<div class="highlight highlight-clj"><pre><span class="nv">=&gt;</span> <span class="p">((</span><span class="nf">static-template</span>
+     <span class="p">(</span><span class="nf">enliven.html.jsoup/parse</span> <span class="s">"&lt;ul&gt;&lt;li&gt;"</span><span class="p">)</span>
+     <span class="s">"li"</span> <span class="p">(</span><span class="nf">dup</span> <span class="ss">:todos</span> 
+            <span class="p">(</span><span class="nf">content</span> <span class="p">[])))</span> <span class="c1">; [] is the empty path, so points to the whole value</span>
+     <span class="p">{</span><span class="ss">:todos</span> <span class="p">[</span><span class="s">"Laundry"</span> <span class="s">"Walk the dog"</span><span class="p">]})</span>
+<span class="s">"&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;ul&gt;&lt;li&gt;Laundry&lt;/li&gt;&lt;li&gt;Walk the dog&lt;/li&gt;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;"</span>
+</pre></div>
+
+<h3>
+<a name="its-fast" class="anchor" href="#its-fast"><span class="octicon octicon-link"></span></a>It's fast</h3>
+
+<p>Generating a 5x5 table. (pr-str just dumps the 5*5 vector):</p>
+
+<ul>
+<li>pr-str (24.5µs), </li>
+<li>enliven (24.8µs), </li>
+<li>hiccup (44.8µs), </li>
+<li>enlive (130µs), </li>
+<li>laser (1280µs).</li>
+</ul><p><a href="https://gist.github.com/cgrand/8471718">https://gist.github.com/cgrand/8471718</a></p>
+
+<h2>
+<a name="dev-details" class="anchor" href="#dev-details"><span class="octicon octicon-link"></span></a>Dev details</h2>
+
+<h3>
+<a name="processing-model" class="anchor" href="#processing-model"><span class="octicon octicon-link"></span></a>Processing model</h3>
+
+<ol>
+<li>Nodes are selected</li>
+<li>For each selected node, associated transformations are grounded -- this is where the nodes are refined to avoid conflicts. The result is a set of rules.</li>
+<li>A hierarchical plan is created from the rules.</li>
+<li>The plan can either be executed as is or "compiled".</li>
+</ol><h2>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
+
+<p>Copyright © 2014 Christophe Grand</p>
+
+<p>Distributed under the Eclipse Public License, the same as Clojure.</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/cgrand">cgrand</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
     </div>
-
-  
+    <script src="javascripts/scale.fix.js"></script>
+    
   </body>
 </html>
