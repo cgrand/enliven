@@ -1,4 +1,4 @@
-# Enliven
+# Enliven [![Build Status](https://travis-ci.org/cgrand/enliven.png?branch=master)](https://travis-ci.org/cgrand/enliven)
 
 Enliven: a (not yet) continuous templating system.
 
