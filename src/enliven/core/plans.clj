@@ -50,10 +50,6 @@
     (-> action (assoc 1 (inc (nth action 1)))
       (action/update-subs nest-rules))))
 
-(defmethod -mash ::action/discard
-  [action _]
-  action)
-
 (defn unplan [plan]
   (letfn [(unplan' [plan]
             (if-let [planned-action (:action plan)]
@@ -181,9 +177,6 @@
 
 (defmethod perform ::action/replace [[op n [path]] scopes node]
   (-> scopes (nth n) (path/fetch-in path)))
-
-(defmethod perform ::action/discard [[op n [path]] scopes node]
- nil)
 
 (defmethod perform ::action/if [[op n [path] then else] scopes node]
   (if (-> scopes (nth n) (path/fetch-in path))

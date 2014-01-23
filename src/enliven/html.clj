@@ -204,8 +204,8 @@
 #_(defn if [selector test then else]
    [[selector [::action/if 0 [test] then else]]])
 
-#_(defn discard [selector]
-   [[selector action/discard]])
+(defn discard [selector]
+  (dup (seg/const nil)))
 
 (defn static-template [node & transformations]
   (let [plan (plan/plan (grounder/ground (apply at transformations) node))

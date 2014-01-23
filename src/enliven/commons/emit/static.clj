@@ -75,9 +75,6 @@
 (defmethod perform ::action/replace [[op n [f]] stack render emit' acc]
   (render (-> stack (nth n) f) nil emit' acc))
 
-(defmethod perform ::action/discard [_ stack render emit' acc]
-  acc)
-
 (defmethod perform ::action/if [[op n [f] then else] stack render emit' acc]
   (if (-> stack (nth n) f)
     (render* then stack emit' acc)
