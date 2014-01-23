@@ -9,27 +9,37 @@
                  :number (sorted-map)
                  :misc {}})
 
+(defn- map-vals [m f]
+  (reduce-kv (fn [m k v] (assoc m k (f v))) m m))
+
+(defn- map-actions [plan f]
+  (if-let [action (:action plan)]
+    (assoc plan :action (f action))
+    (map-vals plan
+      (fn [plans-by-seg]
+        (map-vals plans-by-seg #(map-actions % f))))))
+
 (declare plan-in)
 
-(defn plan
-  ([rules] 
-    (plan empty-plan rules))
-  ([wip-plan rules]
-    (reduce (fn [wip-plan [path action]]
-              (plan-in wip-plan path action))
-      wip-plan rules)))
+(defn plan [rules]
+  (map-actions
+    (->> rules
+      (map (fn [[path action]] [(path/canonical path) action]))
+      (sort-by (comp count first))
+      (reduce (fn [plan [path action]] (plan-in plan path action)) empty-plan))
+    (fn [action] (action/update-subs action plan))))
 
-(defmulti ^:private -mash (fn [[op :as planned-action] path sub-action]
+(defmulti ^:private -mash (fn [[op :as action] path sub-action]
                             op))
 
-(defn- mash [planned-action path sub-action]
-  (if (and (empty? path) (= planned-action (action/update-subs sub-action plan)))
-    planned-action
-    (-mash planned-action path sub-action)))
+(defn- mash [action path sub-action]
+  (if (and (empty? path) (= action sub-action))
+    action ; TODO false negatives
+    (-mash action path sub-action)))
 
-(defmethod -mash :default [planned-action path sub-action]
+(defmethod -mash :default [action path sub-action]
   (throw (ex-info "Conflicting rules" 
-           {:planned-action planned-action
+           {:action action
             :path path 
             :sub-action sub-action})))
 
@@ -41,8 +51,8 @@
       (action/update-subs nest-rules))))
 
 (defmethod -mash ::action/discard
-  [planned-action _]
-  planned-action)
+  [action _]
+  action)
 
 (defn unplan [plan]
   (letfn [(unplan' [plan]
@@ -56,28 +66,27 @@
     (for [[path action] (unplan' plan)]
       [(path/canonical path) action])))
 
-(defmethod -mash ::action/dup [[op n args sub-plan :as action] path sub-action]
+(defmethod -mash ::action/dup [[op n args sub-rules :as action] path sub-action]
   (cond
-    (seq path) [op n args (plan-in sub-plan path (nest sub-action))]
+    (seq path) [op n args (conj sub-rules [path (nest sub-action)])]
     (= [op n args] (take 3 sub-action))
-    [op n args (plan (into (set (unplan sub-plan)) (nth sub-action 3)))]
+    [op n args (into (set sub-rules) (nth sub-action 3))]
     :else (throw (ex-info "Conflicting actions" {:actions [action sub-action]}))))
 
 (defn canonical [a-plan]
   (-> a-plan unplan plan))
 
 (defn- plan-in [wip-plan path action]
-  {:pre [(or (nil? path) (sequential? path))]}
+  {:pre [(or (nil? path) (sequential? path))
+         (vector? action)]}
   (let [wip-plan (or wip-plan empty-plan)]
-    (if-let [planned-action (:action wip-plan)]
-      (assoc empty-plan
-        :action (mash planned-action path action))
+    (if-let [other-action (:action wip-plan)]
+      (assoc wip-plan
+        :action (mash other-action path action))
       (if-let [[seg & segs] (seq path)]
-       (update-in wip-plan [(seg/seg-class seg) seg]
-         plan-in segs action)
-       (plan
-         (assoc empty-plan :action (action/update-subs action plan))
-         (unplan wip-plan))))))
+        (update-in wip-plan [(seg/seg-class seg) seg]
+          plan-in segs action)
+        (assoc wip-plan :action action)))))
 
 (defmulti perform
   "Performs the required action and returns the updated node."
@@ -187,16 +196,6 @@
     (-> scopes (nth n) (path/fetch-in path))))
 
 (defmulti ^:private propagate-drop-scope (fn [[op] n] op))
-
-(defn- map-vals [m f]
-  (reduce-kv (fn [m k v] (assoc m k (f v))) m m))
-
-(defn- map-actions [plan f]
-  (if-let [action (:action plan)]
-    (assoc plan :action (f action))
-    (map-vals plan
-      (fn [plans-by-seg]
-        (map-vals plans-by-seg #(map-actions % f))))))
 
 (defn- drop-scope
   ([plan] (drop-scope plan 0))
