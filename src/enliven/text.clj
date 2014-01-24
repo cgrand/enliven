@@ -2,7 +2,7 @@
   (:require [enliven.core.segments :as seg]
     [enliven.core.locs :as loc]
     [enliven.core.actions :as action]
-    [enliven.core.grounder :as grounder]))
+    [enliven.core.transformations :as transform]))
 
 (seg/defsegment chars [s cs]
   :fetch (vec s)
@@ -22,6 +22,11 @@
     selector))
 
 (defn replace [selector path]
-  (grounder/simple-transformation
-    (sel selector) (action/replace path)))
+  (transform/replace (sel selector) path))
 
+#_(defn static-template [text & transformations]
+   (let [plan (plan/plan (grounder/ground (apply at transformations) text))
+         emitted (common/tight-fn-emit! (static/prerender node plan common/tight-fn-emit! (common/tight-fn-emit!)))]
+     (fn
+       ([data] (common/render emitted data))
+       ([data emit acc] (common/render emitted data emit acc)))))

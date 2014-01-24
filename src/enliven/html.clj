@@ -4,6 +4,7 @@
     [enliven.core.locs :as loc]
     [enliven.core.selectors :as sel]
     [enliven.core.grounder :as grounder]
+    [enliven.core.transformations :as transform]
     [enliven.core.plans :as plan]
     [enliven.html.emit.static :as static]
     [enliven.commons.emit.static :as common]
@@ -152,54 +153,52 @@
       (fn [loc]))))
 
 (defn at [& selector+transformations]
-  (grounder/at* selector+transformations sel))
+  (transform/at* selector+transformations sel))
 
 ;; html-specific transformations
 (defn class
   "Set a class (on the selected elements) when the value at the corresponding path in the model is true."
   {:arglists '([class path & class+paths])}
   [& class+paths]
-  (grounder/composite-transformation
+  (transform/composite
     (for [[class path] (partition 2 class+paths)]
-      (grounder/simple-transformation
+      (transform/replace
         (sel/chain element (sel/by-path [:attrs :class classes (name class)]))
-        (action/replace path)))))
+        path))))
 
 (defn attr
   "Set an attribute (on the selected elements) to the value at the corresponding path in the model."
   {:arglists '([attr path & attr+paths])}
   [& attr+paths]
-  (grounder/composite-transformation
+  (transform/composite
     (for [[attr path] (partition 2 attr+paths)]
-      (grounder/simple-transformation
+      (transform/replace
         (sel/chain element (sel/by-path [:attrs (keyword attr)]))
-        (action/replace path)))))
+        path))))
 
 (defn content
   "Set the content (of the selected elements) the value at the path in the model."
   [path]
-  (grounder/simple-transformation
+  (transform/replace
     (sel/chain element (sel/by-path [:content (seg/slice 0 java.lang.Long/MAX_VALUE)]))
-    (action/replace path)))
+    path))
 
 (defn prepend [path]
-  (grounder/simple-transformation
+  (transform/replace
     (sel/chain element (sel/by-path [:content (seg/slice 0 0)]))
-    (action/replace path)))
+    path))
 
 (defn append [path]
-  (grounder/simple-transformation
+  (transform/replace
     (sel/chain element (sel/by-path [:content (seg/slice java.lang.Long/MAX_VALUE java.lang.Long/MAX_VALUE)]))
-    (action/replace path)))
+    path))
 
 (defn dup
   "Dup[licate] the selected nodes for each item in the collection at the path in the model.
   Each copy is then transformed using the specified transformations.
   For these transformatons the model is restricted to the item."
   [path & transformations]
-  (grounder/splice-transformation
-    list
-    (action/dup path (apply at transformations))))
+  (transform/dup path (apply at transformations)))
 
 #_(defn if [selector test then else]
    [[selector [::action/if 0 [test] then else]]])
