@@ -8,6 +8,7 @@
     [enliven.core.plans :as plan]
     [enliven.html.emit.static :as static]
     [enliven.commons.emit.static :as common]
+    [enliven.html.util :as util]
     [clojure.string :as str]))
 
 ;; html-specific segments
@@ -16,6 +17,27 @@
     (zipmap (re-seq #"\S+" (or class-attr "")) (repeat true))
   :putback
     (some->> classes (keep (fn [[k v]] (when v k))) seq (str/join " ")))
+
+
+(defn read-css-attributes [attr-str]
+  (let [el (com.phloc.css.reader.CSSReaderDeclarationList/readFromString
+            (or attr-str "") com.phloc.css.ECSSVersion/CSS30)]
+    (if el
+      (for [idx (range (.getDeclarationCount el))]
+        [(-> (.getDeclarationAtIndex el idx)
+             (.getProperty))
+         (-> (.getDeclarationAtIndex el idx)
+             (.getExpression)
+             (.getAsCSSString (com.phloc.css.writer.CSSWriterSettings.
+                               com.phloc.css.ECSSVersion/CSS30)
+                              0))])
+      '())))
+
+(seg/defsegment styles [style-attr styles]
+  :fetch
+   (util/ord-hash (reverse (read-css-attributes style-attr)))
+  :putback
+   (reduce (fn [s [k v]] (str s k ":" v ";")) "" (reverse styles)))
 
 (defn children [loc]
   (when (:tag (loc/node loc))
@@ -165,6 +187,17 @@
       (transform/replace
         (sel/chain element (sel/by-path [:attrs :class classes (name class)]))
         path))))
+
+
+(defn style
+  "Sets a style (on the selected elements) to the value at the corresponding path in the model."
+  {:arglists '([style path & style+paths])}
+  [& style+paths]
+  (transform/composite
+    (for [[style path] (partition 2 style+paths)]
+      (transform/replace
+        (sel/chain element (sel/by-path [:attrs :style styles (name style)]))
+         path))))
 
 (defn attr
   "Set an attribute (on the selected elements) to the value at the corresponding path in the model."
