@@ -33,7 +33,7 @@
               sloc (if (= 0 seg) ; canonical paths can't have non-zero numeric segments
                      (loc/up loc)
                      loc)]
-          [[(path/canonical (loc/path sloc)) action]]))))
+          [[sloc action]]))))
   ([selector path]
     (at selector  (replace path))))
 
@@ -52,8 +52,7 @@
             nloc (if (= loc sloc)
                    nloc
                    (loc/down nloc seg))]
-        [[(path/canonical (loc/path sloc)) (action/update action :subs
-                                             grounder/ground-loc nloc)]]))))
+        [[sloc (action/update action :subs grounder/ground-loc nloc)]]))))
 
 (defn if' [path then-sub else-sub]
   (let [action (action/if' path then-sub else-sub)]
@@ -66,5 +65,4 @@
             nloc (if (= loc sloc)
                    nloc
                    (loc/down nloc seg))]
-        [[(path/canonical (loc/path sloc)) (action/update action :subs
-                                             grounder/ground-loc nloc)]]))))
+        [[sloc (action/update action :subs grounder/ground-loc nloc)]]))))

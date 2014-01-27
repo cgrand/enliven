@@ -3,7 +3,7 @@
     [enliven.core.paths :as path]
     [enliven.core.actions :as action]))
 
-;; a plan is a hierarchichal representation of a set of rules
+;; a plan is a hierarchical representation of a set of rules
 
 (def empty-plan {:range (sorted-map)
                  :number (sorted-map)
