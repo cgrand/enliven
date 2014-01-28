@@ -7,8 +7,8 @@
     [enliven.core.grounder :as grounder]
     [enliven.core.transformations :as transform]
     [enliven.core.plans :as plan]
-    [enliven.html.emit.static :as static]
-    [enliven.commons.emit.static :as common]
+    enliven.html.emit.static
+    [enliven.commons.emit.static :as static]
     [clojure.string :as str]))
 
 (defn children [loc]
@@ -203,7 +203,7 @@
   (let [plan (plan/plan (grounder/ground (apply at transformations) node))
         [node plan] (plan/const-execute node plan (list ::plan/dynamic))
         plan (plan/canonical plan)
-        emitted (common/tight-fn-emit! (static/prerender node plan common/tight-fn-emit! (common/tight-fn-emit!)))]
+        emitted (static/tight-fn-emit! (static/prerender ::html/node node plan static/tight-fn-emit! (static/tight-fn-emit!)))]
     (fn
-      ([data] (common/render emitted data))
-      ([data emit acc] (common/render emitted data emit acc)))))
+      ([data] (static/render emitted data))
+      ([data emit acc] (static/render emitted data emit acc)))))

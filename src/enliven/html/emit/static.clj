@@ -1,5 +1,6 @@
 (ns enliven.html.emit.static
-  (:require [enliven.core.segments :as seg]
+  (:require [enliven.html.model :as html]
+    [enliven.core.segments :as seg]
     [enliven.commons.emit.static :as static]
     enliven.text enliven.text.emit.static
     [enliven.core.plans :as plan]
@@ -7,8 +8,6 @@
 
 (defn known-segs-only? [plan known-segs]
   (every? known-segs (keys plan)))
-
-(declare prerender)
 
 (defn escape-text-node [text-node]
   (-> text-node str (.replace "&" "&amp;") (.replace "<" "&lt;")))
@@ -25,16 +24,16 @@
   (if plan
     (let [enc-emit (static/compose-encoding emit escape-text-node)]
       (if-let [char-plan (some-> plan :misc (get enliven.text/chars))]
-        (enliven.text.emit.static/prerender-text
+        (static/prerender ::enliven.text/chars
           (seg/fetch node enliven.text/chars)
           char-plan
           enc-emit acc)
-        (static/prerender-unknown node plan prerender enc-emit acc)))
+        (static/prerender-unknown node plan ::html/node enc-emit acc)))
     (emit acc (escape-text-node node))))
 
-(defn prerender-tag [tag plan emit acc]
+(defmethod static/prerender ::html/tag [node-type tag plan emit acc]
   (if plan
-    (static/prerender-unknown tag plan prerender-tag emit acc)
+    (static/prerender-unknown tag plan node-type emit acc)
     (emit acc (name tag))))
 
 (defmacro ^:private inline-emit
@@ -59,34 +58,34 @@
                  :else acc))
     acc attrs))
 
-(defn prerender-attrs [attrs plan emit acc]
+(defmethod static/prerender ::html/attrs [node-type attrs plan emit acc]
   (cond
     (nil? plan) (render-attrs attrs emit acc)
     (or (:action plan) (not-every? keyword? (keys (:misc plan))))
-      (static/prerender-unknown attrs plan prerender-attrs emit acc)
+      (static/prerender-unknown attrs plan node-type emit acc)
     :else
     (let [untoucheds (reduce dissoc attrs (keys (:misc plan)))
           toucheds (reduce dissoc attrs (keys untoucheds))]
       (inline-emit emit acc 
         ~(render-attrs untoucheds)
-        ~(static/prerender-unknown toucheds plan prerender-attrs)))))
+        ~(static/prerender-unknown toucheds plan node-type)))))
 
 (defn prerender-element [node plan emit acc]
   (if (and (not (:action plan)) (known-segs-only? (:misc plan) #{:tag :attrs :content}))
-    (let [plan-by-seg (:misc plan)]
+    (let [plan-by-seg (:misc plan)
+          prerender (fn [seg emit acc]
+                      (static/prerender (seg/fetch-type ::html/node seg) (seg/fetch node seg) (get plan-by-seg seg)
+                        emit acc))]
       (inline-emit emit acc
-        "<" ~(prerender-tag (:tag node) (:tag plan-by-seg))
-         ~(prerender-attrs (:attrs node) (:attrs plan-by-seg))
-         ">" ~(prerender (:content node) (:content plan-by-seg))
-         "</" ~(prerender-tag (:tag node) (:tag plan-by-seg)) ">"))
-    (static/prerender-unknown node plan prerender emit acc)))
+        "<" ~(prerender :tag) ~(prerender :attrs) ">" ~(prerender :content) "</" ~(prerender :tag) ">"))
+    (static/prerender-unknown node plan ::html/node emit acc)))
 
-(defn prerender
-  "During prerendering, strings, chars and fns are expected to be emitted."
-  [node plan emit acc]
+(defmethod static/prerender ::html/node [node-type node plan emit acc]
   (cond
     (string? node) (prerender-text-node node plan emit acc)
     (:tag node) (prerender-element node plan emit acc)
-    (sequential? node) (static/prerender-fragment node plan prerender emit acc)
-    (nil? node) acc
+    (or (nil? node) (sequential? node)) (static/prerender ::html/nodes node plan emit acc)
     :else (throw (ex-info "Unexpected node" {:node node}))))
+
+(defmethod static/prerender ::html/nodes [node-type nodes plan emit acc]
+  (static/prerender-nodes nodes plan ::html/node emit acc))

@@ -85,33 +85,34 @@
             (render* sub (conj stack item) emit' acc))
     acc (-> stack (nth n) f)))
 
-(defn prerender-action [node action prerender emit acc]
+(defmulti prerender (fn [node-type node plan emit acc] node-type))
+
+(defn prerender-action [node action node-type emit acc]
   (let [action (-> action 
                  (action/update :subs
                    (fn [subplan] 
-                     (emit (prerender node subplan emit (emit)))))
+                     (emit (prerender node-type node subplan emit (emit)))))
                  (action/update :args path/fetcher-in))]
     (emit acc (fn [emit' acc stack]
-                (perform action stack prerender emit' acc)))))
+                (perform action stack (partial prerender node-type) emit' acc)))))
 
 (defn prerender-unknown
   "When the plan involves unknown segments, fall back to the naive execution model."
-  ([node plan prerender emit acc]
+  ([node plan node-type emit acc]
     (if-let [action (:action plan)]
-      (prerender-action node action prerender emit acc)
+      (prerender-action node action node-type emit acc)
       (emit acc (fn [emit' acc stack]
-                  (-> node (plan/execute plan stack)
-                    (prerender nil emit' acc)))))))
+                  (prerender node-type (plan/execute node plan stack) nil emit' acc))))))
 
-(defn prerender-fragment
-  [nodes plan prerender emit acc]
+(defn prerender-nodes
+  [nodes plan node-type emit acc]
   (let [emit-consts (fn [acc nodes]
                       (reduce (fn [acc node]
-                                (prerender node nil emit acc)) 
+                                (prerender node-type node nil emit acc))
                         acc nodes))]
     (cond
       (nil? plan) (emit-consts acc nodes)
-      (:action plan) (prerender-unknown nodes plan prerender emit acc)
+      (:action plan) (prerender-unknown nodes plan node-type emit acc)
       ; there should be a check that we only have known segments
       :else (let [[acc prev-to]
                   (reduce 
@@ -119,7 +120,7 @@
                       (let [[from to] (seg/bounds x nodes)
                             subnode (seg/fetch nodes x)]
                         [(as-> (emit-consts acc (subvec nodes prev-to from)) acc
-                           (prerender subnode subplan emit acc))
+                           (prerender node-type subnode subplan emit acc))
                          to]))
                     [acc 0] (concat (:number plan) (:range plan)))]
               (emit-consts acc (subvec nodes prev-to))))))

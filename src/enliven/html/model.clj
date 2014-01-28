@@ -13,7 +13,8 @@
 
 (seg/deftransitions
   {::node {:content ::nodes
-           :attrs ::attrs}
+           :attrs ::attrs
+           :tag ::tag}
    ::nodes {`seg/slice ::nodes
             Number ::node}
    ::attrs {clojure.lang.Keyword ::attr-value}
