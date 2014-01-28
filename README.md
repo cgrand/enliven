@@ -92,6 +92,37 @@ https://gist.github.com/cgrand/8471718
 3. A hierarchical plan is created from the rules.
 4. The plan can either be executed as is or "compiled".
 
+### Paths and segments
+
+Rules (as produced by the grounding phase) are pairs of a path and an action.
+
+As a first approximation, you can imagine that they are going to be used in conjunction with `assoc-in` to updates parts of the structure.
+
+If you have one rule on `[:a :b]` and another one `[:a :c]`, they can be executed in any order (they may event be performed concurrently as long as you coordinate on the longest common prefix).
+
+However rules on `[:a :b]` and `[:a :b :c]` can't be freely reordered and as such are forbidden.
+
+To alleviate this constraint, segments are a bit more expressive than simple keys in associative data structures.
+
+Segments are used in conjunction with `fetch` and `putback` which are akin to `get` and `assoc`.
+
+Numbers, strings and keywords are segments and Enliven knows that if they are different they don't impede.
+
+Slices (ranges) are also segments and non-overlapping ranges don't impede. (Slices and numbers should not be mixed and that's the main purpose of path canonicalization).
+
+Other segments are opaque and thus will conflict with any other segment. A good practice is to use non-opaque segments as much as possible.
+
+For example the `html/classes` segment can't be used on an HTML element: otherwise it would clash with any other transformation on the element. 
+So the `html/classes` segment is meant to be used after `[:attrs :class]` thus giving to the planner the information that `html/classes` *owns* only the `class` attribute.
+
+Furthermore the `html/classes` segment returns a map so individual classes can be addressed individually. For example `[:attrs :class html/classes "class1"]` and `[:attrs :class html/classes "class2"]` don't clash.
+
+A custom segment thus creates a sort of contention point but by having it to return an associative structure it becomes a coordination point.
+
+### Locs
+
+Locs are a kind of zippers for associative structures. They support only to moves: `up` and `down` (which takes a segment as additional argument).
+
 ## License
 
 Copyright © 2014 Christophe Grand
