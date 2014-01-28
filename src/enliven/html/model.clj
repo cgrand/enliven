@@ -1,7 +1,7 @@
 (ns enliven.html.model
   (:require
     [clojure.string :as str]
-    [enliven.text :as text]
+    [enliven.text.model :as text]
     [enliven.core.segments :as seg]))
 
 ;; html-specific segments

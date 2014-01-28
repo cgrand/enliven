@@ -1,0 +1,11 @@
+(ns enliven.text.model
+  (:require [enliven.core.segments :as seg]))
+
+(seg/defsegment chars [s cs]
+  :fetch (vec s)
+  :putback (apply str cs))
+
+(seg/deftransitions
+  {::chars {`chars ::chars
+            `seg/slice ::chars
+            Number ::char}})

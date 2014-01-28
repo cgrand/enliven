@@ -2,7 +2,7 @@
   (:use clojure.test)
   (:require
     [enliven.html.model :as html]
-    [enliven.text :as text]
+    [enliven.text.model :as text]
     [enliven.core.paths :as path]
     [enliven.core.segments :as seg]))
 

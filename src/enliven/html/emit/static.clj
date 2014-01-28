@@ -1,8 +1,8 @@
 (ns enliven.html.emit.static
   (:require [enliven.html.model :as html]
+    [enliven.text.model :as text]
     [enliven.core.segments :as seg]
     [enliven.commons.emit.static :as static]
-    enliven.text enliven.text.emit.static
     [enliven.core.plans :as plan]
     [enliven.core.actions :as action]))
 
@@ -23,9 +23,9 @@
 (defn prerender-text-node [node plan emit acc]
   (if plan
     (let [enc-emit (static/compose-encoding emit escape-text-node)]
-      (if-let [char-plan (some-> plan :misc (get enliven.text/chars))]
-        (static/prerender ::enliven.text/chars
-          (seg/fetch node enliven.text/chars)
+      (if-let [char-plan (some-> plan :misc (get text/chars))]
+        (static/prerender ::text/chars
+          (seg/fetch node text/chars)
           char-plan
           enc-emit acc)
         (static/prerender-unknown node plan ::html/node enc-emit acc)))

@@ -1,17 +1,9 @@
 (ns enliven.text
-  (:require [enliven.core.segments :as seg]
+  (:require [enliven.text.model :as text]
+    [enliven.core.segments :as seg]
     [enliven.core.locs :as loc]
     [enliven.core.actions :as action]
     [enliven.core.transformations :as transform]))
-
-(seg/defsegment chars [s cs]
-  :fetch (vec s)
-  :putback (apply str cs))
-
-(seg/deftransitions
-  {::chars {`chars ::chars
-            `seg/slice ::chars
-            Number ::char}})
 
 (defn sel [selector]
   (if (instance? java.util.regex.Pattern selector)
