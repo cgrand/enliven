@@ -133,12 +133,22 @@
                  (toString [this#] (pr-str (-expr this#))))))]
     `(def ~name ~(if auto-segment (list f) f))))
 
+(defsegment append-modified-entries [kvs m]
+  :fetch (into {} kvs)
+  :putback (loop [kvs [] okvs kvs m m]
+             (if-let [[[k v :as kv] & okvs] (seq okvs)]
+               (if (= (get m k m) v)
+                 (recur (conj kvs) okvs (dissoc m k))
+                 (recur kvs okvs m))
+               (into kvs m))))
+
 (def ^:private transitions {})
 
 (defn deftransition [from seg-or-seg-type to]
-  (when-not (and (namespace from) (namespace to))
-    (throw (ex-info "from and to must be namespaced" {:from from :to to})))
-  (alter-var-root #'transitions assoc-in [from seg-or-seg-type] to))
+  (let [{to :type :as transition-info} (if (map? to) to {:type to})]
+    (when-not (and (namespace from) (namespace to))
+      (throw (ex-info "from and to must be namespaced" {:from from :to to})))
+    (alter-var-root #'transitions update-in [from seg-or-seg-type] merge transition-info)))
 
 (defn deftransitions [transitions-map]
   (doseq [[from to-map] transitions-map
@@ -153,6 +163,9 @@
                :else (first e))]
     (cons seg (cons type (ancestors type)))))
 
-(defn fetch-type [value-type seg]
+(defn transition-info [value-type seg]
   (when-let [to-map (get transitions value-type)]
     (some #(get to-map %) (seg-types seg))))
+
+(defn fetch-type [value-type seg]
+  (:type (transition-info value-type seg)))
