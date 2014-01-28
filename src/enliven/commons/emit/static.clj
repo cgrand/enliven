@@ -73,7 +73,7 @@
 (defmulti perform (fn [action stack render emit' acc] (:op action)))
 
 (defmethod perform ::action/replace [{n :scope-idx [f] :args} stack render emit' acc]
-  (render (-> stack (nth n) f) nil emit' acc))
+  (render (-> stack (nth n) f) emit' acc))
 
 (defmethod perform ::action/if [{n :scope-idx [f] :args [then else] :subs} stack render emit' acc]
   (if (-> stack (nth n) f)
@@ -94,7 +94,7 @@
                      (emit (prerender node-type node subplan emit (emit)))))
                  (action/update :args path/fetcher-in))]
     (emit acc (fn [emit' acc stack]
-                (perform action stack (partial prerender node-type) emit' acc)))))
+                (perform action stack (fn [node emit acc] (prerender node-type node nil emit acc)) emit' acc)))))
 
 (defn prerender-unknown
   "When the plan involves unknown segments, fall back to the naive execution model."
