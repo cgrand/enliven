@@ -12,11 +12,16 @@
     (some->> classes (keep (fn [[k v]] (when v k))) seq (str/join " ")))
 
 (seg/deftransitions
-  {::node {:content ::nodes
+  {::node {:content {:type ::nodes
+                     :js/fetcher (fn [node seg]
+                                   `(.-childNodes ~node))}
            :attrs ::attrs
-           :tag ::tag}
+           :tag ::tag
+           `text/chars ::text/chars}
    ::nodes {`seg/slice ::nodes
-            Number ::node}
+            Number {:type ::node
+                    :js/fetcher (fn [node seg]
+                                  `(aget ~node ~seg))}}
    ::attrs {clojure.lang.Keyword ::attr-value}
    ::attr-value {`classes ::classes
                  `text/chars ::text/chars}
