@@ -23,8 +23,7 @@
     (fn [path seg]
       (let [prev-seg (peek path)]
         (cond
-          (seg/const? prev-seg)
-          [(seg/const (seg/fetch (seg/fetch nil prev-seg) seg))]
+          (seg/const? prev-seg) [(seg/const (seg/fetch (seg/fetch nil prev-seg) seg))]
           (seg/slice? prev-seg)
           (let [[pfrom] (seg/bounds prev-seg)]
             (cond
@@ -37,8 +36,8 @@
                 ; TODO check for special bounds
                 (-> path pop (conj (seg/slice (+ pfrom from) (+ pfrom to)))))
              :else (conj path seg)))
-          (number? seg)
-          (conj path (seg/slice seg (inc seg)) 0)
+          (number? seg) (conj path (seg/slice seg (inc seg)) 0)
+          (seg/const? seg) [seg]
           :else (conj path seg))))
     [] (if (or (nil? seg-or-segs)
              (sequential? seg-or-segs))
