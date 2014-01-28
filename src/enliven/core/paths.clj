@@ -19,30 +19,31 @@
   "Canonicalize a path: simplify constant paths, collapse nested slice segments, add a parent slice for each indexed access.
    And if it wasn't a path bu just a segment, hoist it into a path." 
   [seg-or-segs]
-  (loop [range-mode false
-        segs (if (or (nil? seg-or-segs)
-                   (sequential? seg-or-segs))
-               seg-or-segs
-               (list seg-or-segs))
-        path []]
-   (if-let [[seg & segs] (seq segs)]
-     (cond
-       (seg/const? seg)
-       (let [v (fetch-in (seg/fetch nil seg) segs)]
-         [(seg/const v)])
-       (and (number? seg) (not (and range-mode (zero? seg))))
-       (recur range-mode (list* (seg/slice seg (inc seg)) 0 segs)
-         path)
-       range-mode
-       (if (seg/slice? seg)
-         (let [[pfrom] (seg/bounds (peek path))
-               [from to] (seg/bounds seg)]
-           ; TODO check for special bounds
-           (recur true segs (-> path pop (conj (seg/slice (+ pfrom from) (+ pfrom to))))))
-         (recur false segs (conj path seg)))
-       :else
-       (recur (seg/slice? seg) segs (conj path seg)))
-     path)))
+  (reduce
+    (fn [path seg]
+      (let [prev-seg (peek path)]
+        (cond
+          (seg/const? prev-seg)
+          [(seg/const (seg/fetch (seg/fetch nil prev-seg) seg))]
+          (seg/slice? prev-seg)
+          (let [[pfrom] (seg/bounds prev-seg)]
+            (cond
+              (number? seg)
+              (let [from (+ pfrom seg)]
+                ; TODO check for special bounds
+                (-> path pop (conj (seg/slice from (inc from)) 0)))
+              (seg/slice? seg)
+              (let [[from to] (seg/bounds seg)]
+                ; TODO check for special bounds
+                (-> path pop (conj (seg/slice (+ pfrom from) (+ pfrom to)))))
+             :else (conj path seg)))
+          (number? seg)
+          (conj path (seg/slice seg (inc seg)) 0)
+          :else (conj path seg))))
+    [] (if (or (nil? seg-or-segs)
+             (sequential? seg-or-segs))
+         seg-or-segs
+         (list seg-or-segs))))
 
 (defn- broader-or-equal? [a b]
   (or (= a b)
