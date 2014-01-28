@@ -15,14 +15,18 @@
   {::node {:content {:type ::nodes
                      :js/fetcher (fn [node seg]
                                    `(.-childNodes ~node))}
-           :attrs ::attrs
+           :attrs {:type ::attrs
+                   :js/fetcher (fn [node seg]
+                                 `(.-attributes ~node))}
            :tag ::tag
            `text/chars ::text/chars}
    ::nodes {`seg/slice ::nodes
             Number {:type ::node
                     :js/fetcher (fn [node seg]
                                   `(aget ~node ~seg))}}
-   ::attrs {clojure.lang.Keyword ::attr-value}
+   ::attrs {clojure.lang.Keyword {:type ::attr-value
+                                  :js/fetcher (fn [node seg]
+                                                `(aget ~node ~(name seg)))}}
    ::attr-value {`classes ::classes
                  `text/chars ::text/chars}
    ::classes {String ::seg/boolsy}})
