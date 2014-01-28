@@ -1,7 +1,7 @@
 (ns enliven.core.paths-test
   (:use clojure.test)
   (:require
-    [enliven.html :as html]
+    [enliven.html.model :as html]
     [enliven.text :as text]
     [enliven.core.paths :as path]
     [enliven.core.segments :as seg]))

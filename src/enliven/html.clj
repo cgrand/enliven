@@ -1,5 +1,6 @@
 (ns enliven.html
   (:require [enliven.core.actions :as action]
+    [enliven.html.model :as html]
     [enliven.core.segments :as seg]
     [enliven.core.locs :as loc]
     [enliven.core.selectors :as sel]
@@ -7,26 +8,8 @@
     [enliven.core.transformations :as transform]
     [enliven.core.plans :as plan]
     [enliven.html.emit.static :as static]
-    [enliven.text :as text]
     [enliven.commons.emit.static :as common]
     [clojure.string :as str]))
-
-;; html-specific segments
-(seg/defsegment classes [class-attr classes]
-  :fetch
-    (zipmap (re-seq #"\S+" (or class-attr "")) (repeat true))
-  :putback
-    (some->> classes (keep (fn [[k v]] (when v k))) seq (str/join " ")))
-
-(seg/deftransitions
-  {::node {:content ::nodes
-           :attrs ::attrs}
-   ::nodes {`seg/slice ::nodes
-            Number ::node}
-   ::attrs {clojure.lang.Keyword ::attr-value}
-   ::attr-value {`classes ::classes
-                 `text/chars ::text/chars}
-   ::classes {String ::seg/boolsy}})
 
 (defn children [loc]
   (when (:tag (loc/node loc))
@@ -174,7 +157,7 @@
   (transform/composite
     (for [[class path] (partition 2 class+paths)]
       (transform/replace
-        (sel/chain element (sel/by-path [:attrs :class classes (name class)]))
+        (sel/chain element (sel/by-path [:attrs :class html/classes (name class)]))
         path))))
 
 (defn attr
