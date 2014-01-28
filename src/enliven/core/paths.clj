@@ -6,6 +6,9 @@
 (defn fetch-in [x path]
   (reduce seg/fetch x path))
 
+(defn fetch-type-in [x-type path]
+  (reduce seg/fetch-type x-type path))
+
 (defn fetcher-in [path]
   (reduce (fn
             ([] identity)

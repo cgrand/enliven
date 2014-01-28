@@ -7,6 +7,7 @@
     [enliven.core.transformations :as transform]
     [enliven.core.plans :as plan]
     [enliven.html.emit.static :as static]
+    [enliven.text :as text]
     [enliven.commons.emit.static :as common]
     [clojure.string :as str]))
 
@@ -16,6 +17,16 @@
     (zipmap (re-seq #"\S+" (or class-attr "")) (repeat true))
   :putback
     (some->> classes (keep (fn [[k v]] (when v k))) seq (str/join " ")))
+
+(seg/deftransitions
+  {::node {:content ::nodes
+           :attrs ::attrs}
+   ::nodes {`seg/slice ::nodes
+            Number ::node}
+   ::attrs {clojure.lang.Keyword ::attr-value}
+   ::attr-value {`classes ::classes
+                 `text/chars ::text/chars}
+   ::classes {String ::seg/boolsy}})
 
 (defn children [loc]
   (when (:tag (loc/node loc))

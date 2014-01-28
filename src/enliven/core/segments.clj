@@ -132,3 +132,27 @@
                  (hashCode [this#] (hash (-expr this#)))
                  (toString [this#] (pr-str (-expr this#))))))]
     `(def ~name ~(if auto-segment (list f) f))))
+
+(def ^:private transitions {})
+
+(defn deftransition [from seg-or-seg-type to]
+  (when-not (and (namespace from) (namespace to))
+    (throw (ex-info "from and to must be namespaced" {:from from :to to})))
+  (alter-var-root #'transitions assoc-in [from seg-or-seg-type] to))
+
+(defn deftransitions [transitions-map]
+  (doseq [[from to-map] transitions-map
+          [seg-type to] to-map]
+    (deftransition from seg-type to)))
+
+(defn seg-types [seg]
+  (let [e (-expr seg)
+        type (cond
+               (= e seg) (class seg)
+               (symbol? e) e
+               :else (first e))]
+    (cons seg (cons type (ancestors type)))))
+
+(defn fetch-type [value-type seg]
+  (when-let [to-map (get transitions value-type)]
+    (some #(get to-map %) (seg-types seg))))

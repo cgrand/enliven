@@ -1,6 +1,8 @@
 (ns enliven.core.paths-test
   (:use clojure.test)
   (:require
+    [enliven.html :as html]
+    [enliven.text :as text]
     [enliven.core.paths :as path]
     [enliven.core.segments :as seg]))
 
@@ -27,3 +29,8 @@
           [(seg/const 3.14)]))
     (is (= (path/canonical [:foo (seg/const {:pi 3.14}) :pi (seg/const 42)])
           [(seg/const 42)]))))
+
+(deftest abstract-fetch
+  (are [from path to] (= (path/fetch-type-in from path) to)
+    ::html/node [:content (seg/slice 1 2) 0 :attrs :class html/classes "important"] ::seg/boolsy
+    ::html/node [:content (seg/slice 1 2) 0 :attrs :style text/chars] ::text/chars))

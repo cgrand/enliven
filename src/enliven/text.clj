@@ -8,6 +8,11 @@
   :fetch (vec s)
   :putback (apply str cs))
 
+(seg/deftransitions
+  {::chars {`chars ::chars
+            `seg/slice ::chars
+            Number ::char}})
+
 (defn sel [selector]
   (if (instance? java.util.regex.Pattern selector)
     (fn [loc]
