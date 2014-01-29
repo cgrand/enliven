@@ -10,5 +10,7 @@
     [(path/canonical (loc/path loc))
      (action/update action :args path/canonical)]))
 
-(defn ground [transformation node]
+(defn ground
+  "Returns a seq of [canonical-path action]."
+  [transformation node]
   (ground-loc transformation (loc/loc node)))

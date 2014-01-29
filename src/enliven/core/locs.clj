@@ -33,4 +33,11 @@
 (defn canonicalize-path [loc']
   (reduce down (-> loc' root loc) (path/canonical (path loc'))))
 
-
+(defn spliceable
+  "Returns the immediate splicing location, if none returns nil."
+  [loc]
+  (let [seg (segment loc)]
+    (cond
+      (number? seg)
+      (-> loc up (down (segs/slice seg (inc seg))))
+      (segs/slice? seg) loc)))

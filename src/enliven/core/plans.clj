@@ -24,7 +24,6 @@
 (defn plan [rules]
   (map-actions
     (->> rules
-      (map (fn [[path action]] [(path/canonical path) action]))
       (sort-by (comp count first))
       (reduce (fn [plan [path action]] (plan-in plan path action)) empty-plan))
     (fn [action] (action/update action :subs plan))))
@@ -35,7 +34,7 @@
 (defn- mash [action path sub-action]
   (if (and (empty? path) (= action sub-action)) ; TODO false negatives
     action
-    (-mash action path sub-action)))
+    (-mash action (path/canonical path) sub-action)))
 
 (defmethod -mash :default [action path sub-action]
   (throw (ex-info "Conflicting rules" 
@@ -60,7 +59,7 @@
                     [path action] (unplan sub-plan)]
                 [(cons seg path) action])))]
     (for [[path action] (unplan' plan)]
-      [(path/canonical path) action])))
+      [path action])))
 
 (defmethod -mash ::action/dup [action path sub-action]
   (cond
@@ -69,8 +68,13 @@
     (action/update action :subs into (first (:subs sub-action)))
     :else (throw (ex-info "Conflicting actions" {:actions [action sub-action]}))))
 
-(defn canonical [a-plan]
-  (-> a-plan unplan plan))
+(defn tidy
+  ([a-plan] (tidy a-plan path/simplify))
+  ([a-plan tidy-path]
+    (letfn [(tidy-rules [rules]
+              (map (fn [[path action]]
+                     [(tidy-path path) (action/update action :subs tidy-rules)]) rules))]
+      (-> a-plan unplan tidy-rules plan))))
 
 (defn- plan-in [wip-plan path action]
   {:pre [(or (nil? path) (sequential? path))

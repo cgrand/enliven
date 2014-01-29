@@ -29,40 +29,29 @@
   ([path]
     (let [action (action/replace path)]
       (fn [loc]
-        (let [seg (:seg loc)
-              sloc (if (= 0 seg) ; canonical paths can't have non-zero numeric segments
-                     (loc/up loc)
-                     loc)]
-          [[sloc action]]))))
+        [[(or (loc/spliceable loc) loc) action]])))
   ([selector path]
     (at selector  (replace path))))
 
 (defn dup [path sub]
   (let [action (action/dup path sub)]
     (fn [loc]
-      (let [seg (:seg loc)
-            sloc (cond
-                   (= 0 seg) ; canonical paths can't have non-zero numeric segments
-                   (loc/up loc)
-                   (seg/slice? seg)
-                   loc
-                   :else (throw (ex-info "Unexpected location for a dup"
+      (let [sloc (loc/spliceable loc)
+            _ (when-not sloc
+                (throw (ex-info "Unexpected location for a dup"
                                   {:loc loc :action action})))
             nloc (-> sloc loc/node loc/loc)
             nloc (if (= loc sloc)
                    nloc
-                   (loc/down nloc seg))]
+                   (loc/down nloc 0))]
         [[sloc (action/update action :subs grounder/ground-loc nloc)]]))))
 
 (defn if' [path then-sub else-sub]
   (let [action (action/if' path then-sub else-sub)]
     (fn [loc]
-      (let [seg (:seg loc)
-            sloc (if (= 0 seg) ; canonical paths can't have non-zero numeric segments
-                   (loc/up loc)
-                   loc)
+      (let [sloc (or (loc/spliceable loc) loc)
             nloc (-> sloc loc/node loc/loc)
             nloc (if (= loc sloc)
                    nloc
-                   (loc/down nloc seg))]
+                   (loc/down nloc 0))]
         [[sloc (action/update action :subs grounder/ground-loc nloc)]]))))
