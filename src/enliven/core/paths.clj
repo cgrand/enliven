@@ -67,32 +67,5 @@
           (conj path seg))))
     [] (simplify seg-or-segs)))
 
-(defn- broader-or-equal? [a b]
-  (or (= a b)
-    (and (seg/slice? a) ; if a is a slice then b is a slice because of the canonicalization
-      (let [[fa ta] (seg/bounds a) [fb tb] (seg/bounds b)]
-        (<= fa fb tb ta)))))
-
-(defn broad-prefix? 
-  "Assumes both paths are canonical, returns true if prefix is a superset of
-   a prefix of path."
-  [prefix path]
-  (let [n (count prefix)]
-    (or (zero? n)
-      (and (<= n (count path))
-        (= (pop prefix) (subvec path 0 (dec n)))
-        (broader-or-equal? (peek prefix) (nth path (dec n)))))))
-
-(defn remove-prefix 
-  "Assumes (broad-prefix? prefix path) is true."
-  [prefix path]
-  (let [n (count prefix)
-        a (peek prefix)
-        b (nth path (dec n))]
-    (into 
-      (if (= a b) [] (let [[fa] (seg/bounds a) [fb tb] (seg/bounds b)]
-                       [(seg/slice (- fb fa) (- tb fa))]))
-      (subvec path n))))
-
 (defn const? [path]
   (-> path first seg/const?))
