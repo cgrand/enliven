@@ -31,10 +31,11 @@
         (static/prerender-unknown node plan ::html/node enc-emit acc)))
     (emit acc (escape-text-node node))))
 
-(defmethod static/prerender ::html/tag [node-type tag plan emit acc]
-  (if plan
-    (static/prerender-unknown tag plan node-type emit acc)
-    (emit acc (name tag))))
+(defmethod static/prerenderer-fn ::html/tag [node-type]
+  (fn [tag plan emit acc]
+    (if plan
+      (static/prerender-unknown tag plan node-type emit acc)
+      (emit acc (name tag)))))
 
 (defmacro ^:private inline-emit
   "Threads the emit fn and its accumulator through each items of coll.
@@ -58,17 +59,18 @@
                  :else acc))
     acc attrs))
 
-(defmethod static/prerender ::html/attrs [node-type attrs plan emit acc]
-  (cond
-    (nil? plan) (render-attrs attrs emit acc)
-    (or (:action plan) (not-every? keyword? (keys (:misc plan))))
-      (static/prerender-unknown attrs plan node-type emit acc)
-    :else
-    (let [untoucheds (reduce dissoc attrs (keys (:misc plan)))
-          toucheds (reduce dissoc attrs (keys untoucheds))]
-      (inline-emit emit acc 
-        ~(render-attrs untoucheds)
-        ~(static/prerender-unknown toucheds plan node-type)))))
+(defmethod static/prerenderer-fn ::html/attrs [node-type]
+  (fn [attrs plan emit acc]
+    (cond
+      (nil? plan) (render-attrs attrs emit acc)
+      (or (:action plan) (not-every? keyword? (keys (:misc plan))))
+        (static/prerender-unknown attrs plan node-type emit acc)
+      :else
+      (let [untoucheds (reduce dissoc attrs (keys (:misc plan)))
+            toucheds (reduce dissoc attrs (keys untoucheds))]
+        (inline-emit emit acc
+          ~(render-attrs untoucheds)
+          ~(static/prerender-unknown toucheds plan node-type))))))
 
 (defn prerender-element [node plan emit acc]
   (if (and (not (:action plan)) (known-segs-only? (:misc plan) #{:tag :attrs :content}))
@@ -80,12 +82,14 @@
         "<" ~(prerender :tag) ~(prerender :attrs) ">" ~(prerender :content) "</" ~(prerender :tag) ">"))
     (static/prerender-unknown node plan ::html/node emit acc)))
 
-(defmethod static/prerender ::html/node [node-type node plan emit acc]
-  (cond
-    (string? node) (prerender-text-node node plan emit acc)
-    (:tag node) (prerender-element node plan emit acc)
-    (or (nil? node) (sequential? node)) (static/prerender ::html/nodes node plan emit acc)
-    :else (throw (ex-info "Unexpected node" {:node node}))))
+(defmethod static/prerenderer-fn ::html/node [node-type]
+  (fn [node plan emit acc]
+    (cond
+      (string? node) (prerender-text-node node plan emit acc)
+      (:tag node) (prerender-element node plan emit acc)
+      (or (nil? node) (sequential? node)) (static/prerender ::html/nodes node plan emit acc)
+      :else (throw (ex-info "Unexpected node" {:node node})))))
 
-(defmethod static/prerender ::html/nodes [node-type nodes plan emit acc]
-  (static/prerender-nodes nodes plan ::html/node emit acc))
+(defmethod static/prerenderer-fn ::html/nodes [node-type]
+  (fn [nodes plan emit acc]
+    (static/prerender-nodes nodes plan ::html/node emit acc)))

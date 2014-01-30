@@ -46,9 +46,8 @@
   [emitted stack f acc]
   (cond 
     (fn? emitted) (emitted f acc stack)
-    (string? emitted) (f acc emitted)
-    (char? emitted) (f acc (str emitted))
-    :else (reduce #(render* %2 stack f %1) acc emitted)))
+    (vector? emitted) (reduce #(render* %2 stack f %1) acc emitted)
+    :else (f acc emitted)))
 
 (defn render
   "Renders a compiled (emitted) template. Either as a string or using a reduce-like interface."
@@ -56,7 +55,6 @@
     (str (render emitted data (fn [^StringBuilder sb s] (.append sb s))
           (StringBuilder.))))
   ([emitted data f acc]
-    #_(emitted f acc (list data))
     (render* emitted (list data) f acc)))
 
 (defn compose-encoding
@@ -85,30 +83,38 @@
             (render* sub (conj stack item) emit' acc))
     acc (-> stack (nth n) f)))
 
-(defmulti prerender (fn [node-type node plan emit acc] node-type))
+(defmulti prerenderer-fn identity)
+
+(defn prerender [node-type node plan emit acc]
+  ((prerenderer-fn node-type) node plan emit acc))
 
 (defn prerender-action [node action node-type emit acc]
-  (let [action (-> action 
+  (let [prerenderer (prerenderer-fn node-type)
+        action (-> action
                  (action/update :subs
                    (fn [subplan] 
-                     (emit (prerender node-type node subplan emit (emit)))))
+                     (emit (prerenderer node subplan emit (emit)))))
                  (action/update :args path/fetcher-in))]
     (emit acc (fn [emit' acc stack]
-                (perform action stack (fn [node emit acc] (prerender node-type node nil emit acc)) emit' acc)))))
+                (perform action stack
+                  (fn [node emit' acc]
+                    (render (emit (prerenderer node nil emit (emit))) nil emit' acc)) emit' acc)))))
 
 (defn prerender-unknown
   "When the plan involves unknown segments, fall back to the naive execution model."
   ([node plan node-type emit acc]
     (if-let [action (:action plan)]
       (prerender-action node action node-type emit acc)
-      (emit acc (fn [emit' acc stack]
-                  (prerender node-type (plan/execute node plan stack) nil emit' acc))))))
+      (emit acc (let [prerenderer (prerenderer-fn node-type)]
+                  (fn [emit' acc stack]
+                    (prerenderer (plan/execute node plan stack) nil emit' acc)))))))
 
 (defn prerender-nodes
   [nodes plan node-type emit acc]
-  (let [emit-consts (fn [acc nodes]
+  (let [prerenderer (prerenderer-fn node-type)
+        emit-consts (fn [acc nodes]
                       (reduce (fn [acc node]
-                                (prerender node-type node nil emit acc))
+                                (prerenderer node nil emit acc))
                         acc nodes))]
     (cond
       (nil? plan) (emit-consts acc nodes)
@@ -120,7 +126,7 @@
                       (let [[from to] (seg/bounds x nodes)
                             subnode (seg/fetch nodes x)]
                         [(as-> (emit-consts acc (subvec nodes prev-to from)) acc
-                           (prerender node-type subnode subplan emit acc))
+                           (prerenderer subnode subplan emit acc))
                          to]))
                     [acc 0] (concat (:number plan) (:range plan)))]
               (emit-consts acc (subvec nodes prev-to))))))
