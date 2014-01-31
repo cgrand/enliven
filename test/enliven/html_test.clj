@@ -97,3 +97,14 @@
                   :span.a (content [])))]
     (is (= (page-wrap "<ul><li><span class='a'>1</span><span class='b'>1</span></li><li><span class='a'>2</span><span class='b'>2</span></li></ul>")
           (t (map str (range 1 3)))))))
+
+(deftest escaping-test
+  (let [t (static-template node3
+            :span.a (content (seg/const "<&\"'"))
+            :span.a (h/attr :class (seg/const "<&\"'"))
+            :span.b (content [])
+            :span.b (h/attr :class []))]
+    (is (= (page-wrap
+             (let [s "<span class='<&\"&quot;'>&lt;&amp;\"'</span>"]
+               (str "<ul><li>" s s "</li></ul>")))
+          (t "<&\"'")))))

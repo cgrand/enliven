@@ -6,13 +6,13 @@
     [enliven.commons.emit.static :as static]))
 
 (defmethod static/prerenderer-fn ::text/char [node-type]
-  (fn [text plan emit acc]
+  (fn [text plan enc emit acc]
     (if (char? text)
       (if (nil? plan)
-        (emit acc text)
-        (static/prerender-unknown plan ::text/char emit acc))
-      (static/prerender ::text/chars text plan emit acc))))
+        (emit acc (enc (str text)))
+        (static/prerender-unknown plan ::text/char (comp enc str) emit acc))
+      (static/prerender ::text/chars text plan enc emit acc))))
 
 (defmethod static/prerenderer-fn ::text/chars [node-type]
-  (fn [text plan emit acc]
-    (static/prerender-nodes text plan ::text/char emit acc)))
+  (fn [text plan enc emit acc]
+    (static/prerender-nodes text plan ::text/char enc emit acc)))

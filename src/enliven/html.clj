@@ -203,7 +203,21 @@
   (let [plan (plan/plan (grounder/ground (apply at transformations) node))
         [node plan] (plan/const-execute node plan (list ::plan/dynamic))
         plan (plan/tidy plan)
-        emitted (static/tight-fn-emit! (static/prerender ::html/node node plan static/tight-fn-emit! (static/tight-fn-emit!)))]
+        emitted (static/tight-fn-emit! (static/prerender ::html/node node plan identity static/tight-fn-emit! (static/tight-fn-emit!)))]
     (fn
       ([data] (static/render emitted data))
       ([data emit acc] (static/render emitted data emit acc)))))
+
+#_(defn static-bytes-template [node & transformations]
+   (let [plan (plan/plan (grounder/ground (apply at transformations) node))
+         [node plan] (plan/const-execute node plan (list ::plan/dynamic))
+         plan (plan/tidy plan)
+         emit static/bytes-fn-emit!
+         emitted (emit (static/prerender ::html/node node plan emit (emit)))]
+     (fn
+       ([data] (.toByteArray
+                 ^java.io.ByteArrayOutputStream (static/render emitted data
+                                                  (fn [^java.io.ByteArrayOutputStream out ^bytes x]
+                                                    (doto out (.write x 0 (alength x))))
+                                                  (java.io.ByteArrayOutputStream.))))
+       ([data emit acc] (static/render emitted data emit acc)))))

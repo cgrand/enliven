@@ -57,17 +57,6 @@
   ([emitted data f acc]
     (render* emitted (list data) f acc)))
 
-(defn compose-encoding
-  [emit enc]
-  (fn encoded-emit
-    ([] (emit))
-    ([acc] (emit acc))
-    ([acc x]
-      (emit acc (if (fn? x)
-                  (fn [emit' acc stack]
-                    (x (compose-encoding emit' enc) acc stack))
-                  (enc x))))))
-
 (defmulti perform (fn [action stack render emit' acc] (:op action)))
 
 (defmethod perform ::action/replace [{n :scope-idx [f] :args} stack render emit' acc]
@@ -85,40 +74,40 @@
 
 (defmulti prerenderer-fn identity)
 
-(defn prerender [node-type node plan emit acc]
-  ((prerenderer-fn node-type) node plan emit acc))
+(defn prerender [node-type node plan enc emit acc]
+  ((prerenderer-fn node-type) node plan enc emit acc))
 
-(defn prerender-action [node action node-type emit acc]
+(defn prerender-action [node action node-type enc emit acc]
   (let [prerenderer (prerenderer-fn node-type)
         action (-> action
                  (action/update :subs
                    (fn [subplan] 
-                     (emit (prerenderer node subplan emit (emit)))))
+                     (emit (prerenderer node subplan enc emit (emit)))))
                  (action/update :args path/fetcher-in))]
     (emit acc (fn [emit' acc stack]
                 (perform action stack
                   (fn [node emit' acc]
-                    (render (emit (prerenderer node nil emit (emit))) nil emit' acc)) emit' acc)))))
+                    (prerenderer node nil enc emit' acc)) emit' acc)))))
 
 (defn prerender-unknown
   "When the plan involves unknown segments, fall back to the naive execution model."
-  ([node plan node-type emit acc]
+  ([node plan node-type enc emit acc]
     (if-let [action (:action plan)]
-      (prerender-action node action node-type emit acc)
+      (prerender-action node action node-type enc emit acc)
       (emit acc (let [prerenderer (prerenderer-fn node-type)]
                   (fn [emit' acc stack]
-                    (prerenderer (plan/execute node plan stack) nil emit' acc)))))))
+                    (prerenderer (plan/execute node plan stack) nil enc emit' acc)))))))
 
 (defn prerender-nodes
-  [nodes plan node-type emit acc]
+  [nodes plan node-type enc emit acc]
   (let [prerenderer (prerenderer-fn node-type)
         emit-consts (fn [acc nodes]
                       (reduce (fn [acc node]
-                                (prerenderer node nil emit acc))
+                                (prerenderer node nil enc emit acc))
                         acc nodes))]
     (cond
       (nil? plan) (emit-consts acc nodes)
-      (:action plan) (prerender-unknown nodes plan node-type emit acc)
+      (:action plan) (prerender-unknown nodes plan node-type enc emit acc)
       ; there should be a check that we only have known segments
       :else (let [[acc prev-to]
                   (reduce 
@@ -126,7 +115,7 @@
                       (let [[from to] (seg/bounds x nodes)
                             subnode (seg/fetch nodes x)]
                         [(as-> (emit-consts acc (subvec nodes prev-to from)) acc
-                           (prerenderer subnode subplan emit acc))
+                           (prerenderer subnode subplan enc emit acc))
                          to]))
                     [acc 0] (concat (:number plan) (:range plan)))]
               (emit-consts acc (subvec nodes prev-to))))))
