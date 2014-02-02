@@ -1,4 +1,5 @@
-(ns enliven.core.actions)
+(ns enliven.core.actions
+  (:refer-clojure :exclude [replace]))
 
 (defn replace [path] {:op ::replace :scope-idx 0 :args [path]})
 (defn dup [path sub]  {:op ::dup :scope-idx 0 :args [path] :subs [sub]})

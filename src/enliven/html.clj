@@ -1,4 +1,5 @@
 (ns enliven.html
+  (:refer-clojure :exclude [class descendants])
   (:require [enliven.core.actions :as action]
     [enliven.html.model :as html]
     [enliven.core.segments :as seg]

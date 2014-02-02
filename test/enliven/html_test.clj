@@ -1,5 +1,6 @@
 (ns enliven.html-test
   (:use clojure.test)
+  (:refer-clojure :exclude [class])
   (:require 
    [enliven.html :as h :refer [static-template content class
                                append prepend style]]
