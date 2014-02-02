@@ -160,6 +160,16 @@
         (sel/chain element (sel/by-path [:attrs :class html/classes (name class)]))
         path))))
 
+(defn style
+  "set style attributes (on the selected elements) to the value at the corriesponding path in the model. This transform will append modified styles to the end of style string. If you have multiple pairs being changes it does not guarantee order of appended pairs."
+  {:arglists '([style path & syle+paths])}
+  [& style+paths]
+  (transform/composite
+    (for [[style path] (partition 2 style+paths)]
+      (transform/replace
+        (sel/chain element (sel/by-path [:attrs :style html/styles html/append-modified-pairs (name style)]))
+        path))))
+
 (defn attr
   "Set an attribute (on the selected elements) to the value at the corresponding path in the model."
   {:arglists '([attr path & attr+paths])}
