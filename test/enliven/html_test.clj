@@ -2,7 +2,7 @@
   (:use clojure.test)
   (:require 
    [enliven.html :as h :refer [static-template content class
-                               append prepend]]
+                               append prepend style]]
    [enliven.html.jsoup :as jsoup]
    [enliven.core.locs :as loc]
    [enliven.core.segments :as seg]))
@@ -38,6 +38,7 @@
 (def node (jsoup/parse "<div>"))
 (def node2 (jsoup/parse "<div><span>t</span></div>"))
 (def node3 (jsoup/parse "<ul><li><span class=a></span><span class=b></span>"))
+(def node4 (jsoup/parse "<div style='background-color:green;color:blue;'>"))
 
 (defn page-wrap [node-str]
   (str "<html><head></head><body>" node-str "</body></html>"))
@@ -51,6 +52,15 @@
     (let [trans (static-template node :div (class :test :success))]
       (is (= (page-wrap "<div class='test'></div>")
              (trans {:success true})))))
+  (testing "style tranform - insert style"
+    (let [trans (static-template node :div (style :color :color))]
+      (is (= (page-wrap "<div style='color:red;'></div>")
+             (trans {:color "red"})))))
+  (testing "style tranform - update style"
+    (let [trans (static-template node4 :div (style :background-color
+                                                   :color))]
+      (is (= (page-wrap "<div style='color:blue;background-color:red;'></div>")
+             (trans {:color "red"})))))
   (testing "append tranform"
     (let [trans (static-template node2 :div (append :success))]
       (is (= (page-wrap "<div><span>t</span>test</div>")
