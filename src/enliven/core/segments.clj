@@ -101,10 +101,10 @@
 
 (defn const? [seg] (instance? Constant seg))
 
-(defmacro defsegment [name doc initial-args & methods]
-  (let [[doc initial-args methods] (if (string? doc)
-                                     [doc initial-args methods]
-                                     ["" doc (cons initial-args methods)])
+(defmacro defsegment [name doc? initial-args & methods]
+  (let [[name initial-args methods] (if (string? doc?)
+                                      [(vary-meta name assoc :doc doc?) initial-args methods]
+                                      [name doc? (cons initial-args methods)])
         [value-arg subvalue-arg & args] initial-args
         fqname (symbol (clojure.core/name (ns-name *ns*)) 
                  (clojure.core/name name))
@@ -135,8 +135,7 @@
                      (= (-expr this#) (-expr that#))))
                  (hashCode [this#] (hash (-expr this#)))
                  (toString [this#] (pr-str (-expr this#))))))]
-    `(def ~(with-meta name (assoc (meta name) :doc doc))
-       ~(if auto-segment (list f) f))))
+    `(def ~name ~(if auto-segment (list f) f))))
 
 (defsegment append-modified-entries [kvs m]
   :fetch (into {} kvs)
