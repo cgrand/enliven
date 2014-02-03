@@ -1,4 +1,5 @@
 (ns enliven.core.transformations
+  (:refer-clojure :exclude [replace])
   (:require [enliven.core.actions :as action]
     [enliven.core.grounder :as grounder]
     [enliven.core.selectors :as sel]

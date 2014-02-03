@@ -1,4 +1,5 @@
 (ns enliven.text
+  (:refer-clojure :exclude [replace])
   (:require [enliven.text.model :as text]
     [enliven.core.segments :as seg]
     [enliven.core.locs :as loc]
