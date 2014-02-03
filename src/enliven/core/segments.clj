@@ -137,12 +137,20 @@
                  (toString [this#] (pr-str (-expr this#))))))]
     `(def ~name ~(if auto-segment (list f) f))))
 
-(defsegment append-modified-entries [kvs m]
-  :fetch (into {} kvs)
-  :putback (loop [kvs [] okvs kvs m m]
-             (if-let [[[k v :as kv] & okvs] (seq okvs)]
+(defsegment append-on-assoc ; better name wanted
+  "Presents a sequence of key-value pairs (an alist) as a map.
+   On putback, unmodified key-value pairs appear first and in their original
+   order, then followed by new or updated key-value pairs in unspecified order.
+   Example:
+   # (update [[:a 1] [:b 2] [:c 3]]
+       append-on-assoc assoc :a 5 :d 6)
+   # [[:b 2] [:c 3] [:d 6] [:a 5]]"
+  [pairs hash]
+  :fetch (into {} pairs)
+  :putback (loop [kvs [] okvs pairs m hash]
+             (if-let [[[k v :as kv] & okvs] okvs]
                (if (= (get m k m) v)
-                 (recur (conj kvs) okvs (dissoc m k))
+                 (recur (conj kvs kv) okvs (dissoc m k))
                  (recur kvs okvs m))
                (into kvs m))))
 

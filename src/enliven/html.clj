@@ -168,7 +168,7 @@
   (transform/composite
     (for [[style path] (partition 2 style+paths)]
       (transform/replace
-        (sel/chain element (sel/by-path [:attrs :style html/styles html/append-modified-pairs (name style)]))
+        (sel/chain element (sel/by-path [:attrs :style html/styles seg/append-on-assoc (name style)]))
         path))))
 
 (defn attr

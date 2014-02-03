@@ -28,29 +28,6 @@
                               0))])
       '())))
 
-
-(seg/defsegment append-modified-pairs  ; better name wanted
-  "takes sequence of key value pairs in order and presents a
-   hash back where modified items are append to the chain of
-   key value pairs.
-   Example:
-   #(let [in [[:a 1] [:b 2] [:c 3]]]
-      (-> in
-          (fetch append-modified-pairs)
-          (assoc :a 5)
-          (assoc :d 6)
-          (#(putback in append-modified-pairs %)))
-   # [[:b 2] [:c 3] [:d 6] [:a 5]] "
-  [pairs hash]
-  :fetch (into {} pairs)
-  :putback (loop [kvs [] okvs pairs m hash]
-             (if-let [[[k v :as kv] & okvs] okvs]
-               (if (= (get m k m) v)
-                 (recur (conj kvs kv) okvs (dissoc m k))
-                 (recur kvs okvs m))
-               (into kvs m))))
-
-
 (seg/defsegment styles
   "allows you to operate on seqence of key value pairs vs the
    style attribute string directly"
@@ -79,6 +56,8 @@
                                   :js/fetcher (fn [node seg]
                                                 `(aget ~node ~(name seg)))}}
    ::attr-value {`classes ::classes
-                 `text/chars ::text/chars}
+                 `text/chars ::text/chars
+                 `styles ::style-decls}
+   ::style-decls {`seg/append-on-assoc ::style-maps}
    ::classes {String ::seg/boolsy}})
 
