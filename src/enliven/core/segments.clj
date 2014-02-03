@@ -137,7 +137,7 @@
                  (toString [this#] (pr-str (-expr this#))))))]
     `(def ~name ~(if auto-segment (list f) f))))
 
-(defsegment append-on-assoc ; better name wanted
+(defsegment append-on-assoc
   "Presents a sequence of key-value pairs (an alist) as a map.
    On putback, unmodified key-value pairs appear first and in their original
    order, then followed by new or updated key-value pairs in unspecified order.
