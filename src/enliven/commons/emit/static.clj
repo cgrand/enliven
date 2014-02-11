@@ -4,7 +4,7 @@
     [enliven.core.segments :as seg]
     [enliven.core.paths :as path]))
 
-(defn tight-emit! 
+(defn tight-emit!
   ([] [])
   ([acc]
     (let [p (peek acc)]
@@ -21,7 +21,7 @@
         (instance? StringBuilder p) (do (.append ^StringBuilder p x) acc)
         :else (conj acc (StringBuilder. (str x)))))))
 
-(defn tight-fn-emit! 
+(defn tight-fn-emit!
   ([] [(fn [emit' acc stack] acc) nil])
   ([[f ^StringBuilder sb]]
     (if sb
@@ -41,10 +41,10 @@
       sb [f (.append sb x)]
       :else [f (StringBuilder. (str x))])))
 
-(defn render* 
+(defn render*
   "Similar to render but takes a stack of scopes instead of just the model."
   [emitted stack f acc]
-  (cond 
+  (cond
     (fn? emitted) (emitted f acc stack)
     (vector? emitted) (reduce #(render* %2 stack f %1) acc emitted)
     :else (f acc emitted)))
@@ -81,7 +81,7 @@
   (let [prerenderer (prerenderer-fn node-type)
         action (-> action
                  (action/update :subs
-                   (fn [subplan] 
+                   (fn [subplan]
                      (emit (prerenderer node subplan enc emit (emit)))))
                  (action/update :args path/fetcher-in))]
     (emit acc (fn [emit' acc stack]
@@ -110,7 +110,7 @@
       (:action plan) (prerender-unknown nodes plan node-type enc emit acc)
       ; there should be a check that we only have known segments
       :else (let [[acc prev-to]
-                  (reduce 
+                  (reduce
                     (fn [[acc prev-to] [x subplan]]
                       (let [[from to] (seg/bounds x nodes)
                             subnode (seg/fetch nodes x)]
