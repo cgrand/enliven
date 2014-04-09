@@ -98,7 +98,7 @@ Rules (as produced by the grounding phase) are pairs of a path and an action.
 
 As a first approximation, you can imagine that they are going to be used in conjunction with `assoc-in` to updates parts of the structure.
 
-If you have one rule on `[:a :b]` and another one `[:a :c]`, they can be executed in any order (they may event be performed concurrently as long as you coordinate on the longest common prefix).
+If you have one rule on `[:a :b]` and another one `[:a :c]`, they can be executed in any order (they may even be performed concurrently as long as you coordinate on the longest common prefix).
 
 However rules on `[:a :b]` and `[:a :b :c]` can't be freely reordered and as such are forbidden.
 
@@ -121,7 +121,7 @@ A custom segment thus creates a sort of contention point but by having it to ret
 
 ### Locs
 
-Locs are a kind of zippers for associative structures. They support only to moves: `up` and `down` (which takes a segment as additional argument).
+Locs are a kind of zippers for associative structures. They support only two moves: `up` and `down` (which takes a segment as additional argument).
 
 ## License
 
