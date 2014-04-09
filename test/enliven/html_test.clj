@@ -1,12 +1,12 @@
 (ns enliven.html-test
   (:use clojure.test)
   (:refer-clojure :exclude [class])
-  (:require 
+  (:require
    [enliven.html :as h :refer [static-template content class
                                append prepend style]]
    [enliven.html.jsoup :as jsoup]
    [enliven.core.locs :as loc]
-   [enliven.core.segments :as seg]))
+   [enliven.core.lenses :as lens]))
 
 
 (deftest selector-tests
@@ -66,24 +66,24 @@
     (let [trans (static-template node2 :div (append :success))]
       (is (= (page-wrap "<div><span>t</span>test</div>")
              (trans {:success "test"})))))
-   (testing "prepend tranform"
+  (testing "prepend tranform"
     (let [trans (static-template node2 :div (prepend :success))]
       (is (= (page-wrap "<div>test<span>t</span></div>")
              (trans {:success "test"})))))
-   (testing "dup tranform"
+  (testing "dup tranform"
     (let [trans (static-template node :div (h/dup :items (content [])))]
       (is (= (page-wrap "<div>0</div><div>1</div><div>2</div>")
-             (trans {:items (map str (range 3))}))))))
+            (trans {:items (map str (range 3))}))))))
 
 (deftest const-analysis-tests
   (let [t (static-template node3
-            :li (h/dup (seg/const ["Hallo" ["Bonjour"]])
+            :li (h/dup (lens/const ["Hallo" ["Bonjour"]])
                   :span.a (content []))
             :span.b (content :msg))]
     (is (= (page-wrap "<ul><li><span class='a'>Hallo</span><span class='b'>x</span></li><li><span class='a'>Bonjour</span><span class='b'>x</span></li></ul>")
           (t {:msg "x"})))
-    (is (= ["x"] (distinct 
-                    (keep (fn [[x y]] (when-not (identical? x y) x)) 
+    (is (= ["x"] (distinct
+                    (keep (fn [[x y]] (when-not (identical? x y) x))
                       (map vector (t {:msg "x"} conj []) (t {:msg "y"} conj []))))))))
 
 (deftest idempotency-tests
@@ -111,8 +111,8 @@
 
 (deftest escaping-test
   (let [t (static-template node3
-            :span.a (content (seg/const "<&\"'"))
-            :span.a (h/attr :class (seg/const "<&\"'"))
+            :span.a (content (lens/const "<&\"'"))
+            :span.a (h/attr :class (lens/const "<&\"'"))
             :span.b (content [])
             :span.b (h/attr :class []))]
     (is (= (page-wrap

@@ -1,14 +1,15 @@
 (ns enliven.core.grounder
   (:require [enliven.core.actions :as action]
     [enliven.core.locs :as loc]
-    [enliven.core.paths :as path]))
+    [enliven.core.lenses :as lens]))
 
 ;; a transformation is a function from loc to seq of [loc action]
 ;; rules (as returned by ground-loc) are seq of [path action]
 (defn ground-loc [transformation loc]
-  (for [[loc action] (transformation loc)]
-    [(path/canonical (loc/path loc))
-     (action/update action :args path/canonical)]))
+  (let [path (lens/canonical (loc/path loc))]
+    (for [[sloc action] (transformation loc)]
+     [(lens/relativize (lens/canonical (loc/path sloc)) path)
+      (action/update action :arg lens/canonical)])))
 
 (defn ground
   "Returns a seq of [canonical-path action]."

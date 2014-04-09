@@ -1,7 +1,7 @@
 (ns enliven.text
   (:refer-clojure :exclude [replace])
   (:require [enliven.text.model :as text]
-    [enliven.core.segments :as seg]
+    [enliven.core.lenses :as lens]
     [enliven.core.locs :as loc]
     [enliven.core.actions :as action]
     [enliven.core.transformations :as transform]))
@@ -11,11 +11,11 @@
     (fn [loc]
       (let [s (loc/node loc)]
         (when (string? s)
-          (let [loc (loc/down loc chars) 
+          (let [loc (loc/down loc chars)
                 m (re-matcher selector s)]
             (loop [locs []]
               (if (.find m)
-                (recur (conj locs (loc/down loc (seg/slice (.start m) (.end m)))))
+                (recur (conj locs (loc/down loc (lens/slice (.start m) (.end m)))))
                 locs))))))
     selector))
 

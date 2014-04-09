@@ -2,7 +2,7 @@
   (:refer-clojure :exclude [class descendants])
   (:require [enliven.core.actions :as action]
     [enliven.html.model :as html]
-    [enliven.core.segments :as seg]
+    [enliven.core.lenses :as lens]
     [enliven.core.locs :as loc]
     [enliven.core.selectors :as sel]
     [enliven.core.grounder :as grounder]
@@ -168,7 +168,7 @@
   (transform/composite
     (for [[style path] (partition 2 style+paths)]
       (transform/replace
-        (sel/chain element (sel/by-path [:attrs :style html/styles seg/append-on-assoc (name style)]))
+        (sel/chain element (sel/by-path [:attrs :style html/styles lens/append-on-assoc (name style)]))
         path))))
 
 (defn attr
@@ -185,17 +185,17 @@
   "Set the content (of the selected elements) the value at the path in the model."
   [path]
   (transform/replace
-    (sel/chain element (sel/by-path [:content (seg/slice 0 java.lang.Long/MAX_VALUE)]))
+    (sel/chain element (sel/by-path [:content (lens/slice 0 java.lang.Long/MAX_VALUE)]))
     path))
 
 (defn prepend [path]
   (transform/replace
-    (sel/chain element (sel/by-path [:content (seg/slice 0 0)]))
+    (sel/chain element (sel/by-path [:content (lens/slice 0 0)]))
     path))
 
 (defn append [path]
   (transform/replace
-    (sel/chain element (sel/by-path [:content (seg/slice java.lang.Long/MAX_VALUE java.lang.Long/MAX_VALUE)]))
+    (sel/chain element (sel/by-path [:content (lens/slice java.lang.Long/MAX_VALUE java.lang.Long/MAX_VALUE)]))
     path))
 
 (defn dup
@@ -208,13 +208,14 @@
 #_(defn if [selector test then else]
    [[selector [::action/if 0 [test] then else]]])
 
-(def discard (dup (seg/const nil)))
+(def discard (dup (lens/const nil)))
 
 (defn static-template [node & transformations]
   (let [plan (plan/plan (grounder/ground (apply at transformations) node))
         [node plan] (plan/const-execute node plan (list ::plan/dynamic))
         plan (plan/tidy plan)
-        emitted (static/tight-fn-emit! (static/prerender ::html/node node plan identity static/tight-fn-emit! (static/tight-fn-emit!)))]
+        emit! static/tight-fn-emit!
+        emitted (emit! (static/prerender ::html/node node plan identity emit! (emit!)))]
     (fn
       ([data] (static/render emitted data))
       ([data emit acc] (static/render emitted data emit acc)))))

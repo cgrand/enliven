@@ -1,8 +1,8 @@
 (ns enliven.core.selectors
   (:require [enliven.core.locs :as locs]
-    [enliven.core.segments :as seg]))
+    [enliven.core.lenses :as lens]))
 
-;; A selector is a function from one loc to a coll of locs; loc -> locs 
+;; A selector is a function from one loc to a coll of locs; loc -> locs
 (defn locs [root sel]
   (sel (locs/loc root)))
 
@@ -35,12 +35,12 @@
   [loc]
   (let [loc (locs/canonicalize-path loc)]
     (when-let [loc (and (zero? (locs/segment loc)) (locs/up loc))]
-      (let [[idx] (seg/bounds (locs/segment loc))
+      (let [[idx] (lens/bounds (locs/segment loc))
             loc (locs/up loc)
             n (-> loc locs/node count)]
         (map #(locs/down loc %) (range (inc idx) n))))))
 
-(defn loc-pred 
+(defn loc-pred
   "Returns a filtering selector which keeps only locs for which pred is true."
   [pred]
   (fn [loc]

@@ -1,12 +1,12 @@
 (ns enliven.text.model
   (:refer-clojure :exclude [chars])
-  (:require [enliven.core.segments :as seg]))
+  (:require [enliven.core.lenses :as lens]))
 
-(seg/defsegment chars [s cs]
+(lens/deflens chars [s cs]
   :fetch (vec s)
   :putback (apply str cs))
 
-(seg/deftransitions
+(lens/deftransitions
   {::chars {`chars ::chars
-            `seg/slice ::chars
+            `lens/slice ::chars
             Number ::char}})

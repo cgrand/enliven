@@ -4,8 +4,7 @@
     [enliven.core.grounder :as grounder]
     [enliven.core.selectors :as sel]
     [enliven.core.locs :as loc]
-    [enliven.core.segments :as seg]
-    [enliven.core.paths :as path]))
+    [enliven.core.lenses :as lens]))
 
 (defn composite [transformations]
   (fn [loc] (mapcat #(% loc) transformations)))
@@ -13,7 +12,7 @@
 (defn mash [& transformations]
   (composite transformations))
 
-(defn at* 
+(defn at*
   ([selector+transformations] (at* selector+transformations identity))
   ([selector+transformations sel]
     (if (next selector+transformations)
@@ -26,7 +25,7 @@
 (defn at [& selector+transformations]
   (at* selector+transformations))
 
-(defn replace 
+(defn replace
   ([path]
     (let [action (action/replace path)]
       (fn [loc]
@@ -34,25 +33,26 @@
   ([selector path]
     (at selector  (replace path))))
 
-(defn dup [path sub]
-  (let [action (action/dup path sub)]
+(defn dup [data-path sub]
+  (let [action (action/dup data-path sub)]
     (fn [loc]
       (let [sloc (loc/spliceable loc)
             _ (when-not sloc
                 (throw (ex-info "Unexpected location for a dup"
                                   {:loc loc :action action})))
-            nloc (-> sloc loc/node loc/loc)
-            nloc (if (= loc sloc)
-                   nloc
-                   (loc/down nloc 0))]
-        [[sloc (action/update action :subs grounder/ground-loc nloc)]]))))
+            path (lens/canonical (loc/path sloc))]
+        [[sloc (action/update action :subs
+                 (fn [[subsel sub]]
+                   (let [subloc (first (subsel loc))]
+                     [(lens/relativize (lens/canonical (loc/path subloc)) path)
+                      (grounder/ground-loc sub subloc)])))]]))))
 
-(defn if' [path then-sub else-sub]
-  (let [action (action/if' path then-sub else-sub)]
-    (fn [loc]
-      (let [sloc (or (loc/spliceable loc) loc)
-            nloc (-> sloc loc/node loc/loc)
-            nloc (if (= loc sloc)
-                   nloc
-                   (loc/down nloc 0))]
-        [[sloc (action/update action :subs grounder/ground-loc nloc)]]))))
+#_(defn if' [path then-sub else-sub]
+   (let [action (action/if' path then-sub else-sub)]
+     (fn [loc]
+       (let [sloc (or (loc/spliceable loc) loc)
+             nloc (-> sloc loc/node loc/loc)
+             nloc (if (= loc sloc)
+                    nloc
+                    (loc/down nloc 0))]
+         [[sloc (action/update action :subs grounder/ground-loc nloc)]]))))

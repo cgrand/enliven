@@ -1,8 +1,7 @@
 (ns enliven.commons.emit.static
   (:require [enliven.core.actions :as action]
     [enliven.core.plans :as plan]
-    [enliven.core.segments :as seg]
-    [enliven.core.paths :as path]))
+    [enliven.core.lenses :as lens]))
 
 (defn tight-emit!
   ([] [])
@@ -41,6 +40,52 @@
       sb [f (.append sb x)]
       :else [f (StringBuilder. (str x))])))
 
+#_(defn tight-eval-fn-emit!
+   ([] [(map gensym '[emit' acc stack]) [] {} nil])
+   ([[[emit'-sym acc-sym stack-sym] forms meta-args ^StringBuilder sb]]
+     (let [forms (if sb
+                   (conj forms (list emit'-sym acc-sym (str sb)))
+                   forms)
+           meta-f (eval `(fn [~@(keys meta-args)]
+                           (fn [~emit'-sym ~acc-sym ~stack-sym]
+                             (as-> ~acc-sym ~acc-sym ~@forms))))]
+       (apply meta-f (vals meta-args))))
+   ([[[emit'-sym acc-sym stack-sym :as syms] forms meta-args ^StringBuilder sb] x]
+     (cond
+       (fn? x) (let [f-sym (gensym 'f)]
+                 [syms
+                  (as-> forms forms
+                    (if sb
+                      (conj forms (list emit'-sym acc-sym (str sb)))
+                      forms)
+                    (conj forms (list f-sym emit'-sym acc-sym stack-sym)))
+                  (assoc meta-args f-sym x)
+                  nil])
+       sb [syms forms meta-args (.append sb x)]
+       :else [syms forms meta-args (StringBuilder. (str x))])))
+
+(defn bytes-fn-emit!
+  ([] [(fn [emit' acc stack] acc) nil])
+  ([[f ^java.io.ByteArrayOutputStream out]]
+    (if out
+      (let [b (.toByteArray out)]
+        (fn [emit' acc stack]
+          (emit' (f emit' acc stack) b)))
+      f))
+  ([[f ^java.io.ByteArrayOutputStream out] x]
+    (cond
+      (fn? x) [(if out
+                (let [b (.toByteArray out)]
+                  (fn [emit' acc stack]
+                    (x emit' (emit' (f emit' acc stack) b) stack)))
+                (fn [emit' acc stack]
+                  (x emit' (f emit' acc stack) stack)))
+               nil]
+      out [f (let [b (.getBytes ^String x "UTF-8")] (doto out (.write b 0 (alength b))))]
+      :else [f (let [b (.getBytes ^String x "UTF-8")
+                     n (alength b)]
+                 (doto (java.io.ByteArrayOutputStream. n) (.write b 0 n)))])))
+
 (defn render*
   "Similar to render but takes a stack of scopes instead of just the model."
   [emitted stack f acc]
@@ -59,15 +104,15 @@
 
 (defmulti perform (fn [action stack render emit' acc] (:op action)))
 
-(defmethod perform ::action/replace [{n :scope-idx [f] :args} stack render emit' acc]
+(defmethod perform ::action/replace [{n :scope-idx f :arg} stack render emit' acc]
   (render (-> stack (nth n) f) emit' acc))
 
-(defmethod perform ::action/if [{n :scope-idx [f] :args [then else] :subs} stack render emit' acc]
-  (if (-> stack (nth n) f)
-    (render* then stack emit' acc)
-    (render* else stack emit' acc)))
+#_(defmethod perform ::action/if [{n :scope-idx f :arg [then else] :subs} stack render emit' acc]
+   (if (-> stack (nth n) f)
+     (render* then stack emit' acc)
+     (render* else stack emit' acc)))
 
-(defmethod perform ::action/dup [{n :scope-idx [f] :args [sub] :subs} stack render emit' acc]
+(defmethod perform ::action/dup [{n :scope-idx f :arg [sub] :subs} stack render emit' acc]
   (reduce (fn [acc item]
             (render* sub (conj stack item) emit' acc))
     acc (-> stack (nth n) f)))
@@ -81,9 +126,9 @@
   (let [prerenderer (prerenderer-fn node-type)
         action (-> action
                  (action/update :subs
-                   (fn [subplan]
-                     (emit (prerenderer node subplan enc emit (emit)))))
-                 (action/update :args path/fetcher-in))]
+                   (fn [[skip-lens subplan]]
+                     (emit (prerenderer (lens/fetch node skip-lens) subplan enc emit (emit)))))
+                 (action/update :arg lens/fetcher))]
     (emit acc (fn [emit' acc stack]
                 (perform action stack
                   (fn [node emit' acc]
@@ -91,12 +136,12 @@
 
 (defn prerender-unknown
   "When the plan involves unknown segments, fall back to the naive execution model."
-  ([node plan node-type enc emit acc]
-    (if-let [action (:action plan)]
-      (prerender-action node action node-type enc emit acc)
-      (emit acc (let [prerenderer (prerenderer-fn node-type)]
-                  (fn [emit' acc stack]
-                    (prerenderer (plan/execute node plan stack) nil enc emit' acc)))))))
+  [node plan node-type enc emit acc]
+  (if-let [action (:action plan)]
+    (prerender-action node action node-type enc emit acc)
+    (emit acc (let [prerenderer (prerenderer-fn node-type)]
+                (fn [emit' acc stack]
+                  (prerenderer (plan/execute node plan stack) nil enc emit' acc))))))
 
 (defn prerender-nodes
   [nodes plan node-type enc emit acc]
@@ -112,8 +157,8 @@
       :else (let [[acc prev-to]
                   (reduce
                     (fn [[acc prev-to] [x subplan]]
-                      (let [[from to] (seg/bounds x nodes)
-                            subnode (seg/fetch nodes x)]
+                      (let [[from to] (lens/bounds x nodes)
+                            subnode (lens/fetch nodes x)]
                         [(as-> (emit-consts acc (subvec nodes prev-to from)) acc
                            (prerenderer subnode subplan enc emit acc))
                          to]))

@@ -2,7 +2,6 @@
   (:require [enliven.text.model :as text]
     [enliven.core.actions :as action]
     [enliven.core.plans :as plan]
-    [enliven.core.segments :as seg]
     [enliven.commons.emit.static :as static]))
 
 (defmethod static/prerenderer-fn ::text/char [node-type]

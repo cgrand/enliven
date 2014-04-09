@@ -1,7 +1,7 @@
 (ns enliven.html.emit.static
   (:require [enliven.html.model :as html]
     [enliven.text.model :as text]
-    [enliven.core.segments :as seg]
+    [enliven.core.lenses :as lens]
     [enliven.commons.emit.static :as static]
     [enliven.core.plans :as plan]
     [enliven.core.actions :as action]))
@@ -25,7 +25,7 @@
     (if plan
       (if-let [char-plan (some-> plan :misc (get text/chars))]
         (static/prerender ::text/chars
-          (seg/fetch node text/chars)
+          (lens/fetch node text/chars)
           char-plan
           enc emit acc)
         (static/prerender-unknown node plan ::html/node enc emit acc))
@@ -54,7 +54,7 @@
 
 (defn- render-attrs [attrs enc emit acc]
   (reduce-kv (fn [acc attr v]
-               (cond 
+               (cond
                  (true? v) (emit acc (enc (name attr)))
                  v (inline-emit enc emit acc " " (name attr)
                      "='" (escape-attr-value v) "'")
@@ -78,7 +78,7 @@
   (if (and (not (:action plan)) (known-segs-only? (:misc plan) #{:tag :attrs :content}))
     (let [plan-by-seg (:misc plan)
           prerender (fn [seg enc emit acc]
-                      (static/prerender (seg/fetch-type ::html/node seg) (seg/fetch node seg) (get plan-by-seg seg)
+                      (static/prerender (lens/fetch-type ::html/node seg) (lens/fetch node seg) (get plan-by-seg seg)
                         enc emit acc))]
       (inline-emit enc emit acc
         "<" ~(prerender :tag) ~(prerender :attrs) ">" ~(prerender :content) "</" ~(prerender :tag) ">"))

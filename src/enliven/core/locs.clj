@@ -1,6 +1,5 @@
 (ns enliven.core.locs
-  (:require [enliven.core.segments :as segs]
-    [enliven.core.paths :as path]))
+  (:require [enliven.core.lenses :as lens]))
 
 (defrecord ^:private Loc [value seg ploc])
 
@@ -8,7 +7,7 @@
   (->Loc x nil nil))
 
 (defn down [loc seg]
-  (->Loc (segs/fetch (:value loc) seg) seg loc))
+  (->Loc (lens/fetch (:value loc) seg) seg loc))
 
 (defn up [loc]
   (:ploc loc))
@@ -31,7 +30,7 @@
     (:value loc)))
 
 (defn canonicalize-path [loc']
-  (reduce down (-> loc' root loc) (path/canonical (path loc'))))
+  (reduce down (-> loc' root loc) (lens/canonical (path loc'))))
 
 (defn spliceable
   "Returns the immediate splicing location, if none returns nil."
@@ -39,5 +38,5 @@
   (let [seg (segment loc)]
     (cond
       (number? seg)
-      (-> loc up (down (segs/slice seg (inc seg))))
-      (segs/slice? seg) loc)))
+      (-> loc up (down (lens/slice seg (inc seg))))
+      (lens/slice? seg) loc)))
