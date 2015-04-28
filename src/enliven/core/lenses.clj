@@ -1,10 +1,21 @@
 (ns enliven.core.lenses
-  (:refer-clojure :exclude [comp identity]))
+  (:refer-clojure :exclude [comp identity juxt]))
 
 (ns-unmap *ns* 'Readable)
 
 (defprotocol Readable
   (expr-form [x]))
+
+(defn lens-type [lens]
+  (let [e (expr-form lens)]
+    (cond
+      (= e lens) (class lens)
+      (symbol? e) e
+      :else (first e))))
+
+(defn lens-types [lens]
+  (let [type (lens-type lens)]
+    (cons lens (cons type (ancestors type)))))
 
 (defprotocol Lens
   (-fetch [lens value])
@@ -162,21 +173,21 @@
   Readable {:expr-form clojure.core/identity}
   LensEx {:-fetcher (fn [n] #(nth % n))})
 
-(defn lens-class [lens]
-  (cond
-    (slice? lens) :range
-    (number? lens) :number
-    :else :misc))
-
 (defn bounds
   ([lens]
-    (case (lens-class lens)
-                      :range [(:from lens) (:to lens)]
-                      :number [lens (inc lens)]))
+    (condp #(isa? %2 %1) (lens-type lens)
+      `slice [(:from lens) (:to lens)]
+      Number [lens (inc lens)]
+      nil))
   ([lens v]
-    (let [[from to] (bounds lens)
-          n (count v)]
-      [(bound 0 from n) (bound 0 to n)])))
+    (when-let [[from to] (bounds lens)]
+      (let [n (count v)]
+        [(bound 0 from n) (bound 0 to n)]))))
+
+(defn independent? [a b]
+  (let [[fa ta :as ba] (bounds a)
+        [fb tb :as bb] (bounds b)]
+    (and (and ba bb) (or (<= ta fb) (<= tb fa)))))
 
 (defrecord Constant [v]
   Lens
@@ -259,14 +270,6 @@
           [lens-type to] to-map]
     (deftransition from lens-type to)))
 
-(defn lens-types [lens]
-  (let [e (expr-form lens)
-        type (cond
-               (= e lens) (class lens)
-               (symbol? e) e
-               :else (first e))]
-    (cons lens (cons type (ancestors type)))))
-
 (defn transition-info [value-type lens]
   (when-let [to-map (get transitions value-type)]
     (some #(get to-map %) (lens-types lens))))
@@ -276,7 +279,7 @@
     value-type (decompose lens)))
 
 (defn simplify
-  "Simplify constant lenses and collapse compounded slice lenses."
+  "Simplify constant lenses and collapse compounded slice/numeric lenses."
   [l]
   (lens
     (reduce
@@ -286,57 +289,62 @@
             (const? prev-lens) [(const (fetch (fetch nil prev-lens) l))]
             (slice? prev-lens)
             (let [[pfrom] (bounds prev-lens)]
-              (if (slice? l)
+              (cond
+                (slice? l)
                 (let [[from to] (bounds l)]
                   ; TODO check for special bounds
                   (-> lenses pop (conj (slice (+ pfrom from) (+ pfrom to)))))
+                (number? l)
+                (-> lenses pop (conj (+ pfrom l)))
+                :else
                 (conj lenses l)))
             (const? l) [l]
             :else (conj lenses l))))
      [] (decompose l))))
 
-(defn canonical
-  "Canonicalize a path: simplify and add a parent slice for each indexed access."
-  [l]
-  (lens
-    (reduce
-      (fn [lenses l]
-        (let [prev-lens (peek lenses)]
-          (cond
-            (not (number? l)) (conj lenses l)
-            (slice? prev-lens)
-            (let [[pfrom] (bounds prev-lens)]
-              (let [from (+ pfrom l)]
-                ; TODO check for special bounds
-                (-> lenses pop (conj (slice from (inc from)) 0))))
-            :else (conj lenses (slice l (inc l)) 0))))
-      [] (decompose (simplify l)))))
+(defn identity? [l]
+  (empty? (decompose (simplify l))))
 
-(defn minimal [l]
-  (lens
-    (reduce
-     (fn [lenses l]
-       (let [prev-lens (peek lenses)]
-         (if (and (number? l) (slice? prev-lens))
-           (let [[pfrom] (bounds prev-lens)]
-             ; TODO check for special bounds
-             (-> lenses pop (conj (+ pfrom l))))
-           (conj lenses l))))
-     [] (decompose (simplify l)))))
+(defn gcl
+  "Returns [gcl sla slb] where gcp is the greatest common lens such that
+   (compound gcl sla) is equivalent to la and (compound gcl slb) to lb)
+   and that (gcl sla slb) yields [identity sla slb]."
+  [la lb]
+  (loop [gcls [] las (decompose (simplify la)) lbs (decompose (simplify lb))]
+    (if (and (seq las) (seq lbs))
+      (let [[a & as] las
+            [b & bs] lbs]
+        (if (= a b)
+          (recur (conj gcls a) as bs)
+          (let [ta (lens-type a)
+                tb (lens-type b)]
+            (cond
+              (independent? a b)
+              [(lens gcls) (lens las) (lens lbs)]
+              ; a and b are not independent
+              (and (isa? ta Number) (isa? tb `slice))
+              (let [[from] (bounds b)]
+                (recur (conj gcls b) (cons (- a from) as) bs))
+              (and (isa? tb Number) (isa? ta `slice))
+              (let [[from] (bounds a)]
+                (recur (conj gcls a) as (cons (- b from) bs)))
+              (and (isa? tb `slice) (isa? ta `slice))
+              (let [[from-a to-a] (bounds a)
+                    [from-b to-b] (bounds b)]
+                (cond
+                  (<= from-a from-b to-b to-a)
+                  (recur (conj gcls a)
+                    as
+                    (cons (slice (- from-b from-a) (- to-b from-a)) bs))
+                  (<= from-b from-a to-a to-b)
+                  (recur (conj gcls b)
+                    (cons (slice (- from-a from-b) (- to-a from-b)) as)
+                    bs)))))))
+      [(lens gcls) (lens las) (lens lbs)])))
 
-(defn relativize [l prefix-lens]
-  ; lenses should be canonical
-  (loop [lenses (decompose l) prefix-lenses (decompose prefix-lens)]
-    (if-let [[plens & more-prefix-lenses] (seq prefix-lenses)]
-      (when-let [[l & more-lenses] (seq lenses)]
-        (cond
-          (= l plens) (recur more-lenses more-prefix-lenses)
-          (and (slice? l) (slice? plens) (empty? more-prefix-lenses))
-          (let [[pfrom pto] (bounds plens)
-                [from to] (bounds l)]
-            (when (and (<= pfrom from) (<= to pto))
-              (lens (into [(slice (- from pfrom) (- to pfrom))] more-lenses))))))
-      (lens lenses))))
+(defn rm-prefix [lens prefix]
+  (when-let [[_ suffix _] (gcl lens prefix)]
+    suffix))
 
 (defn focus
   "Takes a n-arg function and returns a 1-arg function. All arguments to the original
@@ -353,6 +361,18 @@
   [f main-lens & other-lenses]
   (apply focus main-lens f main-lens other-lenses))
 
+(defn juxt ; TODO make safe version w/ dependent lenses
+  "Beware of dependent lenses!"
+  [& lenses]
+  (let [lenses (vec lenses)]
+    (reify Lens
+      (-fetch [_ x]
+        (mapv #(fetch x %) lenses))
+      (-putback [_ x y]
+        (reduce-kv (fn [x idx l]
+                     (putback x l (nth y idx)))
+          x lenses)))))
+
 #_(defn lens-map [m]
    (let [m (if (map? m) m (zipmap m m))]
      (reify Lens
@@ -360,6 +380,5 @@
          (zipmap (keys m) (map #(fetch x %) (vals m))))
        (-putback [_ x y]
          (reduce-kv (fn [x k l]
-                      (putback x k (get y k)))
-           x m)
-         (zipmap (keys m) (map #(fetch x %) (vals m)))))))
+                      (putback x l (get y k)))
+           x m)))))

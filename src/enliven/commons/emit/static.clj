@@ -137,7 +137,7 @@
 (defn prerender-unknown
   "When the plan involves unknown segments, fall back to the naive execution model."
   [node plan node-type enc emit acc]
-  (if-let [action (:action plan)]
+  (if-let [action (:op plan)]
     (prerender-action node action node-type enc emit acc)
     (emit acc (let [prerenderer (prerenderer-fn node-type)]
                 (fn [emit' acc stack]

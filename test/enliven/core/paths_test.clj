@@ -5,29 +5,41 @@
     [enliven.text.model :as text]
     [enliven.core.lenses :as lens]))
 
-(deftest canonicalization
+(deftest simplification
   (testing "Hoisting segments"
-    (is (= (lens/canonical :foo) :foo))
-    (is (= (lens/canonical [:foo]) :foo)))
+    (is (= (lens/simplify :foo) :foo))
+    (is (= (lens/simplify [:foo]) :foo)))
   (testing "empty path is the identity"
-    (is (= (lens/canonical []) lens/identity)))
+    (is (= (lens/simplify []) lens/identity)))
   (testing "Merge nested slices"
-    (is (= (lens/canonical [(lens/slice 1 3) (lens/slice 1 2)])
+    (is (= (lens/simplify [(lens/slice 1 3) (lens/slice 1 2)])
           (lens/slice 2 3))))
   (testing "Reparent indexed segment as a 0-index in a singleton slice."
-    (is (= (lens/decompose (lens/canonical [12]))
-          [(lens/slice 12 13) 0]))
-    (is (= (lens/decompose (lens/canonical [(lens/slice 2 20) 12]))
-             [(lens/slice 14 15) 0])))
+    (is (= (lens/simplify [12])
+          12))
+    (is (= (lens/simplify [(lens/slice 2 20) 12])
+             14)))
   (testing "Simplify constant paths"
-    (is (= (lens/canonical [:foo (lens/const 42)])
+    (is (= (lens/simplify [:foo (lens/const 42)])
           (lens/const 42)))
-    (is (= (lens/canonical [:foo (lens/const 42) (lens/const 63)])
+    (is (= (lens/simplify [:foo (lens/const 42) (lens/const 63)])
           (lens/const 63)))
-    (is (= (lens/canonical [:foo (lens/const {:pi 3.14}) :pi])
+    (is (= (lens/simplify [:foo (lens/const {:pi 3.14}) :pi])
           (lens/const 3.14)))
-    (is (= (lens/canonical [:foo (lens/const {:pi 3.14}) :pi (lens/const 42)])
+    (is (= (lens/simplify [:foo (lens/const {:pi 3.14}) :pi (lens/const 42)])
           (lens/const 42)))))
+
+(deftest gcl
+  (is (= (lens/gcl 1 1)
+        [1 lens/identity lens/identity]))
+  (is (= (lens/gcl 1 2)
+        [lens/identity 1 2]))
+  (is (= (lens/gcl (lens/slice 2 6) (lens/slice 4 7))
+        nil))
+  (is (= (lens/gcl 3 (lens/slice 2 5))
+        [(lens/slice 2 5) 1 lens/identity]))
+  (is (= (lens/gcl (lens/slice 3 4) (lens/slice 2 5))
+        [(lens/slice 2 5) (lens/slice 1 2) lens/identity])))
 
 (deftest abstract-fetch
   (are [from path to] (= (lens/fetch-type from path) to)

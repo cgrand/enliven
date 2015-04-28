@@ -6,4 +6,8 @@
   :repositories [["phloc.com" "http://repo.phloc.com/maven2"]]
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [com.phloc/phloc-css "3.7.0"]
-                 [org.jsoup/jsoup "1.7.2"]])
+                 [org.jsoup/jsoup "1.7.2"]
+                 [criterium "0.4.2"]
+                 [hiccup "1.0.4"]
+                 [enlive "1.1.3"]
+                 [me.raynes/laser "1.1.1"]])

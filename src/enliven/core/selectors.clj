@@ -33,12 +33,10 @@
   "A selector that returns all the rights siblings of a node
   (ordered from closest to farthest)."
   [loc]
-  (let [loc (locs/canonicalize-path loc)]
-    (when-let [loc (and (zero? (locs/segment loc)) (locs/up loc))]
-      (let [[idx] (lens/bounds (locs/segment loc))
-            loc (locs/up loc)
-            n (-> loc locs/node count)]
-        (map #(locs/down loc %) (range (inc idx) n))))))
+  (let [n (locs/segment loc)]
+    (when (number? n)
+      (loop [loc (locs/up loc) n n]
+        (map #(locs/down loc %) (range (inc n) (-> loc locs/node count)))))))
 
 (defn loc-pred
   "Returns a filtering selector which keeps only locs for which pred is true."

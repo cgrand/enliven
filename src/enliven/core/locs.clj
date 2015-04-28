@@ -29,9 +29,6 @@
     (recur ploc)
     (:value loc)))
 
-(defn canonicalize-path [loc']
-  (reduce down (-> loc' root loc) (lens/canonical (path loc'))))
-
 (defn spliceable
   "Returns the immediate splicing location, if none returns nil."
   [loc]

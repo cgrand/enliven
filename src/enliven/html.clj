@@ -8,6 +8,7 @@
     [enliven.core.grounder :as grounder]
     [enliven.core.transformations :as transform]
     [enliven.core.plans :as plan]
+    #_[enliven.core.components :as components]
     enliven.html.emit.static
     [enliven.commons.emit.static :as static]
     [clojure.string :as str]))
@@ -211,9 +212,10 @@
 (def discard (dup (lens/const nil)))
 
 (defn static-template [node & transformations]
-  (let [plan (plan/plan (grounder/ground (apply at transformations) node))
-        [node plan] (plan/const-execute node plan (list ::plan/dynamic))
-        plan (plan/tidy plan)
+  (let [plan (plan/rplan ::html/node node (grounder/ground (apply at transformations) node))
+        #_#_components (components/componentize plan node ::html/node)
+        #_#_components (doto (components/const-execute components) prn)
+        #_#_[node plan] (plan/const-execute node plan (list ::plan/dynamic))
         emit! static/tight-fn-emit!
         emitted (emit! (static/prerender ::html/node node plan identity emit! (emit!)))]
     (fn

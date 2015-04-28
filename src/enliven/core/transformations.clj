@@ -40,12 +40,12 @@
             _ (when-not sloc
                 (throw (ex-info "Unexpected location for a dup"
                                   {:loc loc :action action})))
-            path (lens/canonical (loc/path sloc))]
+            path (loc/path sloc)]
         [[sloc (action/update action :subs
                  (fn [[subsel sub]]
                    (let [subloc (first (subsel loc))]
-                     [(lens/relativize (lens/canonical (loc/path subloc)) path)
-                      (grounder/ground-loc sub subloc)])))]]))))
+                     [lens/identity #_(lens/rm-prefix (loc/path subloc) path)
+                      (grounder/ground-loc sub subloc path)])))]]))))
 
 #_(defn if' [path then-sub else-sub]
    (let [action (action/if' path then-sub else-sub)]
